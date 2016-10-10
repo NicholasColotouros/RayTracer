@@ -97,6 +97,46 @@ public class Frustum extends Drawable {
 		focalLeft = (focalZ/originZCam) * rectCamLeft;		
 	}
 	
+	/***
+	 * Used for offset for defocus blur samples.
+	 * 
+	 * Takes the same parameters as the previous constructors but now the rectangle top/right/left/bottom
+	 * are those of the focal plane in world coordinates for which the frustum will fit exactly. They are
+	 * expected to be in world coordinates.
+	 * 
+	 * The calculations are the same as the above constructors but with the parameters altered to accomodate
+	 * for the change in what's being used to calculate the near plane.
+	 * 
+	 */
+	public Frustum(Eye pEye, double pNear, double pFar, double pFocalZ,
+			double rectangleTop, double rectangleBottom, double rectangleRight, double rectangleLeft, Frustum f){
+		eye = pEye;
+		this.colour = eye.colour;
+		this.colour = new float[] {0,1,0};
+		
+		// Convert near and far to camera coordinates
+		near = pNear - eye.z;
+		far = pFar - eye.z;
+		
+		// define the focal plane in camera coordinates
+		focalZ = pFocalZ - eye.z;
+		
+		focalTop = rectangleTop - eye.y;
+		focalBottom = rectangleBottom - eye.y;
+		focalRight = rectangleRight  - eye.x;
+		focalLeft = rectangleLeft  - eye.x;
+		
+		// Origin Z in camera coords.
+		double originZCam = 0 - eye.z;
+		
+		// Similar triangles used to compute the sides of the near plane  
+		top = (near/focalZ) * focalTop;
+		bottom = (near/focalZ) * focalBottom;
+		
+		right = (near/focalZ) * focalRight;
+		left = (near/focalZ) * focalLeft;		
+	}
+	
 	@Override
 	public void display(GLAutoDrawable drawable, GLUT glut) {
 		createFrustum(drawable, glut, FrustumMode.DISPLAY, null);
@@ -122,7 +162,9 @@ public class Frustum extends Drawable {
 		
 		// make and get the viewing transformation
 		gl.glLoadIdentity();		
-		glu.gluLookAt( eye.x, eye.y, eye.z, eye.x, eye.y, eye.z-1, 0,1,0 );
+		glu.gluLookAt( eye.x, eye.y, eye.z, 	// center of eye in world coords
+						eye.x, eye.y, eye.z-1,	// Look dead ahead 
+						0,1,0 ); 				// Up in world coords
 		gl.glGetDoublev( GL2.GL_MODELVIEW_MATRIX, V.asArray(), 0 );
 		
 		gl.glLoadIdentity();
@@ -162,7 +204,7 @@ public class Frustum extends Drawable {
 		gl.glPushMatrix();
 		gl.glTranslated(eye.x, eye.y, eye.z); // Convert back to world coordinates
 		Rectangle focalPoint = new Rectangle(focalLeft, focalRight, focalBottom, focalTop, focalZ);
-		focalPoint.colour = new float[]{0.5f,0.5f,0.5f};
+		focalPoint.colour = this.colour;
 		focalPoint.display(drawable, glut);
 		gl.glPopMatrix();
 		
