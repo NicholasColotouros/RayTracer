@@ -9,6 +9,7 @@ import com.jogamp.opengl.GLAutoDrawable;
 
 import javax.swing.JPanel;
 import javax.swing.border.TitledBorder;
+import javax.vecmath.Point2d;
 
 import mintools.parameters.BooleanParameter;
 import mintools.parameters.DoubleParameter;
@@ -49,9 +50,9 @@ public class A2App extends A2Base {
      * Also note that these quantities give the z coordinate in the world coordinate system!
      * */
     
-    // centerEyeOnZAxis is used to demonstrate the center eye frustum that does not account for x or y displacement
-    // having it unchecked will have the center eye frustum account for the x,y displacement
-    private BooleanParameter centerEyeOnZAxis = new BooleanParameter( "Objective 1-3: z-axis center eye", false ); 
+    // objective4Debug renders the objective 4 frustum (the one on the z-axis whose frustum is about the center screen) 
+    // and another that uses the x,y,z offsets whose frustum is about the focal rectangle defined by the above. 
+    private BooleanParameter objective4Debug = new BooleanParameter( "Objective 4: focal rectangle pivot debug", false ); 
     private DoubleParameter eyeZPosition = new DoubleParameter( "eye z position in world", 0.5, 0.25, 3 ); 
     private DoubleParameter near = new DoubleParameter( "near z position in world", 0.25, -0.2, 0.5 ); 
     private DoubleParameter far  = new DoubleParameter( "far z position in world", -0.5, -2, -0.25 ); 
@@ -61,7 +62,7 @@ public class A2App extends A2Base {
     private IntParameter samples = new IntParameter( "samples", 2, 1, 100 );   
     
     /** In the human eye, pupil diameter ranges between approximately 2 and 8 mm */
-    private DoubleParameter aperture = new DoubleParameter( "aperture size", 0.003, 0, 0.01 );
+    private DoubleParameter aperture = new DoubleParameter( "aperture size", 0.003, 0.0001, 0.01 );
     
     /** x eye offsets for testing (see objective 4) */         
     private DoubleParameter eyeXOffset = new DoubleParameter("eye offset in x", 0.0, -0.3, 0.3);
@@ -169,7 +170,7 @@ public class A2App extends A2Base {
      */
     public JPanel getControls() {     
         VerticalFlowPanel vfp = new VerticalFlowPanel();
-        vfp.add(centerEyeOnZAxis.getControls());
+        vfp.add(objective4Debug.getControls());
         vfp.add( eyeZPosition.getSliderControls(false));        
         vfp.add ( drawCenterEyeFrustum.getControls() );
         vfp.add( near.getSliderControls(false));
@@ -216,27 +217,17 @@ public class A2App extends A2Base {
         Rectangle screenRectangle = new Rectangle(w, h, 0);
         
         // Create the center eye and its frustum
-        Eye centerEye = new Eye(eyeXOffset.getValue(), eyeYOffset.getValue(), eyeZPosition.getValue(), eyeRadius);
-        centerEye.colour = new float[]{1,0,1};
-
-        // The checkbox for centering the eye on the z-axis is for showing objectives 1-3 which assumes 
-        // the center eye is on the z-axis.
-        Frustum centerEyeFrustum;
-        if(centerEyeOnZAxis.getValue()){
-        	centerEyeFrustum = new Frustum(eyeZPosition.getValue(), near.getValue(), far.getValue(), 
-        									h/2, w/2, focalPlaneZPosition.getValue());
-        }
-        else{
-            centerEyeFrustum = new Frustum(centerEye, near.getValue(), far.getValue(), 
-            								h/2, w/2, focalPlaneZPosition.getValue());        	
-        }
-        
+        Eye centerEye = new Eye(0, 0, eyeZPosition.getValue(), eyeRadius);
+        Frustum centerEyeFrustum = new Frustum(centerEye, near.getValue(), far.getValue(), 
+				h/2, w/2, focalPlaneZPosition.getValue());
         centerEyeFrustum.colour = centerEye.colour;
         
         // Set up the left and right eyes
+        // Their frustums capture the screen rectangle like the center eye frustum but they are displaced on x
+        // according to the eye disparity.
         double eyeDist = eyeDisparity.getValue()/2; // Half will be applies to the left eye and half to the right
-        Eye leftEye = new Eye(eyeXOffset.getValue() - eyeDist, eyeYOffset.getValue(), eyeZPosition.getValue(), eyeRadius);
-        Eye rightEye = new Eye(eyeXOffset.getValue() + eyeDist, eyeYOffset.getValue(), eyeZPosition.getValue(), eyeRadius);
+        Eye leftEye = new Eye(-eyeDist, 0, eyeZPosition.getValue(), eyeRadius);
+        Eye rightEye = new Eye(eyeDist, 0, eyeZPosition.getValue(), eyeRadius);
         
         leftEye.colour = new float[]{0,0,1}; // using the same colours as the 3D glasses
         rightEye.colour = new float[]{1,0,0};
@@ -260,9 +251,22 @@ public class A2App extends A2Base {
             scene.display( drawable );
             gl.glPopMatrix();
             
-            // Objective 1: draw screen rectangle and center eye
+            // Objective 1 and 3: draw screen rectangle and center eye 
+            // and the calculated focal plane from the center eye frustum
+            Rectangle centerFocalPlane = centerEyeFrustum.getFocalRectangleInWorldCoordinates();
             screenRectangle.display(drawable, glut);
+            centerFocalPlane.display(drawable, glut);
             
+            // Objective 4: if the debug objective 4 checkbox is checked, there will be 2 eyes
+            // the center eye from objective 2 and the one that uses the x, y offset whose frustum
+            // is always the focal plane of the center eye. It will be green.
+            if(objective4Debug.getValue()){
+            	Eye offsetEye = new Eye(eyeXOffset.getValue(), eyeYOffset.getValue(), eyeZPosition.getValue(), eyeRadius);
+            	offsetEye.colour = new float[]{0,1,0};
+            	Frustum offsetFrustum = new Frustum(offsetEye, near.getValue(), far.getValue(), focalPlaneZPosition.getValue(), 
+            			centerFocalPlane.top, centerFocalPlane.bottom, centerFocalPlane.right, centerFocalPlane.left);
+            	offsetFrustum.display(drawable, glut);
+            }
             
             // Objective 2 - draw camera frustum if drawCenterEyeFrustum is true
             if(drawCenterEyeFrustum.getValue()){
@@ -273,7 +277,6 @@ public class A2App extends A2Base {
             	leftEyeFrustum.display(drawable, glut);
             	rightEyeFrustum.display(drawable, glut);
             }
-
         }  if ( viewingMode == 2 ) {
         	// Objective 2 - draw the center eye camera view
         	gl.glPushMatrix();
@@ -281,22 +284,8 @@ public class A2App extends A2Base {
             gl.glPopMatrix();
         	
         } else if ( viewingMode == 3 ) {       
-        	// Objective 5 - draw center eye with depth of field blur 
+        	// Objective 5 - draw center eye with depth of field blur
         	applyMotionBlurAndDraw(centerEyeFrustum, drawable, gl);
-        	
-        	// TODO remove: used for debugging/trials
-        	gl.glPushMatrix();
-        	leftEyeFrustum.lookThroughFrustum(drawable, glut, scene);
-            gl.glPopMatrix();
-            gl.glAccum(GL2.GL_LOAD, 0.5f);
-            
-            gl.glPushMatrix();
-        	rightEyeFrustum.lookThroughFrustum(drawable, glut, scene);
-            gl.glPopMatrix();
-            gl.glAccum(GL2.GL_ACCUM, 0.5f);
-            
-            
-            gl.glAccum(GL2.GL_RETURN, 1.0f);
             
         } else if ( viewingMode == 4 ) {
         	
@@ -378,7 +367,7 @@ public class A2App extends A2Base {
             gl.glViewport(0, 0, drawable.getSurfaceWidth(), heightPixels);
             
         } else if ( viewingMode == 9 ) {            
-        	// TODO: Bonus: The combination of a depth of field blur for each eye show as an anaglyph
+        	// Bonus: The combination of a depth of field blur for each eye show as an anaglyph
         	// Left Eye
         	gl.glPushMatrix();
         	gl.glColorMask( true, false, false, true );
@@ -437,23 +426,51 @@ public class A2App extends A2Base {
             	applyMotionBlurAndDraw(leftEyeFrustum, drawable, gl);
                 gl.glPopMatrix();
             }
+        	gl.glViewport(0, 0, drawable.getSurfaceWidth(), heightPixels);
         }        
     }
-    
+    FastPoissonDisk fpd = new FastPoissonDisk();    	
+	
     /***
      * Applies motion blue to the supplies frustum and renders the scene.
      */
     private void applyMotionBlurAndDraw(Frustum f, GLAutoDrawable drawable, GL2 gl){
-    	Eye eye = f.eye;
-    	// TODO Focal plane distance = focal length??? What math am i doing
-    	double focalPlaneDistance = focalPlaneZPosition.getValue() - eye.z;
-    	double apertureSize = focalPlaneDistance / aperture.getValue();
+    	// Checks for bad values
+    	if(samples.getValue() < 1){
+    		samples.setValue(1);
+    	}
     	
-    	// TODO: Objective 5 - draw center eye with depth of field blur
-    	FastPoissonDisk fpd = new FastPoissonDisk();
+    	gl.glClear(GL2.GL_ACCUM_BUFFER_BIT);
+    	
+    	Eye eye = f.eye;
+    	Rectangle centerFocalPlane = f.getFocalRectangleInWorldCoordinates();
+    	
+    	// Calculations for the aperture size and weight of each sample
+    	double apertureSize = aperture.getValue();
+    	float sampleWeight = 1.0f / ((float)samples.getValue());
+    	
+    	// Draw the view through the eye as the first sample
     	f.lookThroughFrustum(drawable, glut, scene);
-    	for (int i = 1; i <= samples.getValue(); i++) {
-//    		fpd.get(p, i, N);
+    	gl.glAccum(GL2.GL_ACCUM, sampleWeight);
+		gl.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT);
+    	
+    	// Take samples that aren't the eye itself (offset)
+    	for (int i = 1; i < samples.getValue(); i++) {
+
+    		// Get a sample x,y point and scale it to be used
+    		Point2d p = new Point2d();
+    		fpd.get(p, i, samples.getValue());
+    		p.scale(apertureSize);
+    		
+    		// Draw the frustum, render the scene
+    		Eye sampleEye = new Eye(p.x, p.y, eye.z, 0.0125);
+    		Frustum sampleFrustum = new Frustum(sampleEye, near.getValue(), far.getValue(), focalPlaneZPosition.getValue(),
+    				centerFocalPlane.top, centerFocalPlane.bottom, centerFocalPlane.right, centerFocalPlane.left);
+    		sampleFrustum.lookThroughFrustum(drawable, glut, scene);
+    		
+    		// Put the image onto the scene, clear the drawn scene
+    		gl.glAccum(GL2.GL_ACCUM, sampleWeight);
+    		gl.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT);
     	}
     	gl.glAccum(GL2.GL_RETURN, 1.0f);    	
 

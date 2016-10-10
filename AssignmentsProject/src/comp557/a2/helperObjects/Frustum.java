@@ -23,47 +23,13 @@ public class Frustum extends Drawable {
 	public Eye eye;
 	
 	/**
-	 * Used for objectives 1-3 (Eye is on Z-axis at all times)
 	 * Does the calculations for the sides of the near plane. Assumes everything to be in world coordinates.
-	 * @param eyeZ the Z coordinate of the eye
+	 * @param pEye the coordinates of the eye
 	 * @param pNear Z coordinate of near plane
 	 * @param pFar Z coordinate of far plane
 	 * @param rectangleTop Y coordinate of the top of the rectangle (screen height /2)
 	 * @param rectangleRight X coordinate of the top of the rectangle (screen width /2)
 	 * @param pFocalZ The focal Z parameter
-	 */
-	public Frustum (double eyeZ, double pNear, double pFar, double rectangleTop, double rectangleRight, double pFocalZ){
-		eye = new Eye(0, 0, eyeZ, 0.0125);
-		
-		// Convert near and far to camera coordinates
-		near = pNear - eye.z;
-		far = pFar - eye.z;
-		
-		// define the rectangle sides in terms of camera
-		double rectCamTop = rectangleTop - eye.y;
-		double rectCamRight = rectangleRight  - eye.x;
-		
-		double originZCam = 0 - eye.z;
-		
-		// Objective 2 -- simplified for only z axis movement 
-		top = (near/originZCam) * rectCamTop;
-		bottom = -top;
-		
-		right = (near/originZCam) * rectCamRight;
-		left = -right;
-		
-		// Objective 3 -- calculate the focal point relative to the camera
-		focalZ = pFocalZ - eye.z;
-		focalTop = (focalZ/originZCam) * rectCamTop;
-		focalBottom = -focalTop;
-		
-		focalRight = (focalZ/originZCam) * rectCamRight;
-		focalLeft = -focalRight;
-		
-	}
-	
-	/***
-	 * Constructor for Objective 4. Allows the eye to not be on the Z-Axis.
 	 */
 	public Frustum (Eye pEye, double pNear, double pFar, double rectangleTop, double rectangleRight, double pFocalZ){
 		eye = pEye;
@@ -109,10 +75,9 @@ public class Frustum extends Drawable {
 	 * 
 	 */
 	public Frustum(Eye pEye, double pNear, double pFar, double pFocalZ,
-			double rectangleTop, double rectangleBottom, double rectangleRight, double rectangleLeft, Frustum f){
+			double rectangleTop, double rectangleBottom, double rectangleRight, double rectangleLeft){
 		eye = pEye;
 		this.colour = eye.colour;
-		this.colour = new float[] {0,1,0};
 		
 		// Convert near and far to camera coordinates
 		near = pNear - eye.z;
@@ -125,9 +90,6 @@ public class Frustum extends Drawable {
 		focalBottom = rectangleBottom - eye.y;
 		focalRight = rectangleRight  - eye.x;
 		focalLeft = rectangleLeft  - eye.x;
-		
-		// Origin Z in camera coords.
-		double originZCam = 0 - eye.z;
 		
 		// Similar triangles used to compute the sides of the near plane  
 		top = (near/focalZ) * focalTop;
@@ -145,11 +107,17 @@ public class Frustum extends Drawable {
 	public void lookThroughFrustum(GLAutoDrawable drawable, GLUT glut, Scene scene) {
 		createFrustum(drawable, glut, FrustumMode.VIEW, scene);
 	}
+	
+	public Rectangle getFocalRectangleInWorldCoordinates() {
+		Rectangle focalPoint = new Rectangle(focalLeft + eye.x, focalRight + eye.x, 
+											focalBottom + eye.y, focalTop + eye.y, focalZ + eye.z);
+		focalPoint.colour = new float[]{0.5f, 0.5f, 0.5f};
+		return focalPoint;
+	}
 
 	GLU glu = new GLU();
 	
 	private void createFrustum(GLAutoDrawable drawable, GLUT glut, FrustumMode mode, Scene scene){
-		// TODO rephrase some of this since it's copypasta from the projDemo
 		GL2 gl = drawable.getGL().getGL2();
 		
 		// Allocate matrices
@@ -186,31 +154,27 @@ public class Frustum extends Drawable {
 			scene.display(drawable);
 		}
 		
-		// Draw the frustum and focal point. If computed correctly it shouldn't show in the view mode
-		// so it doesn't matter if we're always drawing them
+		// Draw the frustum and focal point if we're not looking through it.
 		gl.glDisable(GL2.GL_LIGHTING);
 		
 		gl.glPushMatrix();
-		gl.glMultMatrixd( Vinv.asArray(), 0 ); /**** EYE SPACE NOW */
+		gl.glMultMatrixd( Vinv.asArray(), 0 ); // Eye space
 		gl.glColor3f(colour[0],colour[1],colour[2]);
-		gl.glMultMatrixd( Pinv.asArray(), 0 ); // ***** POST PROJECTION SPACE *
+		gl.glMultMatrixd( Pinv.asArray(), 0 ); // Post-projection space
 		
-		glut.glutWireCube(2);
+		if(mode == FrustumMode.DISPLAY){
+			glut.glutWireCube(2);			
+		}
+		
 		gl.glPopMatrix();
 		
-		// ***** WORLD SPACE *
-		
-		// Objective 3 -- focal rectangle display
-		gl.glPushMatrix();
-		gl.glTranslated(eye.x, eye.y, eye.z); // Convert back to world coordinates
-		Rectangle focalPoint = new Rectangle(focalLeft, focalRight, focalBottom, focalTop, focalZ);
-		focalPoint.colour = this.colour;
-		focalPoint.display(drawable, glut);
-		gl.glPopMatrix();
+		// World space
 		
 		gl.glEnable(GL2.GL_LIGHTING);
 		
 		// Draw the eye after we're done
-		eye.display(drawable, glut);
+		if(mode == FrustumMode.DISPLAY){
+			eye.display(drawable, glut);
+		}
 	}
 }
