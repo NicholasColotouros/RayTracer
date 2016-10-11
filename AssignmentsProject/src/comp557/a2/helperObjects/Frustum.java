@@ -5,6 +5,7 @@ import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.gl2.GLUT;
 
+import comp557.a2.A2App;
 import comp557.a2.Scene;
 import mintools.viewer.FlatMatrix4d;
 
@@ -151,6 +152,7 @@ public class Frustum extends Drawable {
 			gl.glLoadMatrixd( P.asArray(), 0 );
 			gl.glMatrixMode( GL2.GL_MODELVIEW );
 			gl.glLoadMatrixd( V.asArray(), 0 );
+			A2App.tbc2.applyViewTransformation(drawable);
 			scene.display(drawable);
 		}
 		

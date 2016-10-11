@@ -99,7 +99,7 @@ public class A2App extends A2Base {
     /** Main trackball for viewing the world and the two eye frustums */
     private TrackBallCamera tbc = new TrackBallCamera();
     /** Second trackball for rotating the scene */
-    private TrackBallCamera tbc2 = new TrackBallCamera();
+    public static TrackBallCamera tbc2 = new TrackBallCamera();
     
     /**
      * Creates the application
@@ -402,7 +402,7 @@ public class A2App extends A2Base {
     				h/2, rightWidth/2, focalPlaneZPosition.getValue());
             
         	if ( viewingMode == 10 ) {            
-            	// TODO: Bonus: Defocus with a left right side by side view.
+            	// Bonus: Defocus with a left right side by side view.
         		gl.glViewport(0, 0, leftWPixels, heightPixels);
             	gl.glPushMatrix();
             	applyMotionBlurAndDraw(leftEyeFrustum, drawable, gl);
@@ -415,7 +415,7 @@ public class A2App extends A2Base {
             	
             	
             }else if ( viewingMode == 11 ) {            
-            	// TODO: Bonus: Defocus with a right left side by side view.
+            	// Bonus: Defocus with a right left side by side view.
             	gl.glViewport(0, 0, rightWPixels, heightPixels);
             	gl.glPushMatrix();
             	applyMotionBlurAndDraw(rightEyeFrustum, drawable, gl);
