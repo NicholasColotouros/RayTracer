@@ -15,7 +15,7 @@ import comp557.a3.HalfEdge;
  * Half edge data structure.
  * Maintains a list of faces (i.e., one half edge of each) to allow for easy display of geometry.
  * 
- * @author TODO: YOUR NAME AND STUDENT NUMBER HERE
+ * @author Nicholas Colotouros, 260531370
  */
 public class HEDS {
 

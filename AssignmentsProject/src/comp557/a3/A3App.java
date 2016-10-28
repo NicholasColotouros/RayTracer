@@ -11,6 +11,8 @@ import com.jogamp.opengl.DebugGL2;
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL2;
 import com.jogamp.opengl.GLAutoDrawable;
+import com.jogamp.opengl.GLException;
+
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -18,6 +20,9 @@ import javax.swing.JTextArea;
 import javax.swing.border.TitledBorder;
 
 import com.jogamp.opengl.util.gl2.GLUT;
+import com.jogamp.opengl.util.glsl.ShaderCode;
+import com.jogamp.opengl.util.glsl.ShaderProgram;
+import com.jogamp.opengl.util.glsl.ShaderState;
 
 import mintools.parameters.BooleanParameter;
 import mintools.parameters.IntParameter;
@@ -38,6 +43,11 @@ public class A3App implements SceneGraphNode, Interactor {
     public static void main(String[] args) {
         new A3App();
     }
+    
+    // Objective 7: Per fragment lighting variables
+    ShaderState state = new ShaderState();
+    private static String FRAGMENT_SHADER = "perFragmentLighting";
+    private boolean usePerFragmentShading;
     
     /**
      * The currently loaded polygon soup
@@ -91,7 +101,7 @@ public class A3App implements SceneGraphNode, Interactor {
     public A3App() {    
         loadSoupBuildAndSubdivide( "a3data/" + soupFiles[0], 3 );
         EasyViewer ev = new EasyViewer("Comp 557 Assignment 3 - YOUR NAME HERE", this, new Dimension(800, 800), new Dimension(800, 800) );
-        ev.addInteractor(this);
+        ev.addInteractor(this);        
     }
     
     /**
@@ -117,7 +127,7 @@ public class A3App implements SceneGraphNode, Interactor {
     @Override
     public void display(GLAutoDrawable drawable) {
         GL2 gl = drawable.getGL().getGL2();
-    
+        
         if ( !drawWireFrame.getValue()) {
             // if drawing with lighting, we'll set the material
             // properties for the font and back surfaces, and set
@@ -155,9 +165,14 @@ public class A3App implements SceneGraphNode, Interactor {
             //gl.glPolygonMode( GL.GL_FRONT_AND_BACK, GL2.GL_FILL );
         }        
 
+        // TODO do I enable this now, later or earlier?
+        state.useProgram( gl, usePerFragmentShading );
+
+        
         if ( drawHalfEdge.getValue() && currentHE != null ) {
             currentHE.display( drawable );
         }
+        
         
         EasyViewer.beginOverlay(drawable);
         gl.glDisable( GL2.GL_LIGHTING );
@@ -175,6 +190,19 @@ public class A3App implements SceneGraphNode, Interactor {
         gl.glEnable(GL.GL_LINE_SMOOTH);
         gl.glEnable(GL2.GL_POINT_SMOOTH);
         gl.glEnable(GL2.GL_NORMALIZE );
+        
+        // Objective 6: Fragment sharing init
+        GL2 gl2 = gl.getGL2();
+        ShaderCode vsCode = ShaderCode.create( gl2, GL2.GL_VERTEX_SHADER, this.getClass(), "shaders", "shader/bin", FRAGMENT_SHADER, false );
+        ShaderCode fsCode = ShaderCode.create( gl2, GL2.GL_FRAGMENT_SHADER, this.getClass(), "shaders", "shader/bin", FRAGMENT_SHADER, false );	
+        ShaderProgram program = new ShaderProgram();
+        program.add( vsCode );
+        program.add( fsCode );
+		if ( !program.link(gl2, System.err) ) {
+			throw new GLException("Couldn't link program: " + program );
+		}	
+		state.attachShaderProgram( gl2, program, false );
+
     }
 
     /** Level of subdivision of the mesh to draw */
@@ -254,7 +282,9 @@ public class A3App implements SceneGraphNode, Interactor {
                 } else if ( e.getKeyCode() == KeyEvent.VK_END ) {
                     drawLevel++;
                     if ( drawLevel >= subdivisionLevels.getValue() ) drawLevel = subdivisionLevels.getValue() - 1;
-                }              
+                } else if ( e.getKeyCode() == KeyEvent.VK_F) { // Objective 6, toggle per fragment lighting
+                	usePerFragmentShading = !usePerFragmentShading;               	
+                }
             }
         });
     }

@@ -3,7 +3,7 @@ package comp557.a3;
 /**
  * Class implementing the Loop subdivision scheme     
  * 
- * @author TODO: YOUR NAME AND STUDENT NUMBER HERE
+ * @author Nicholas Colotouros, 260531370
  */
 public class Loop {
 

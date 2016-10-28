@@ -1,0 +1,8 @@
+varying vec3 ecn;  // surface normal in eye coordinates 
+varying vec3 ecv;  // surface fragment location in eye coordinates 
+
+void main() {
+	ecn = normalize( gl_NormalMatrix * gl_Normal );	
+    ecv = vec3( gl_ModelViewMatrix * gl_Vertex );          
+    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex; 
+}
