@@ -160,9 +160,9 @@ public class A3App implements SceneGraphNode, Interactor {
         
         if ( drawCoarse.getValue() ) {
             // TODO: Objective 1: uncomment polygon mode lines to now always make coarse soup draw in wireframe
-        	//gl.glPolygonMode( GL.GL_FRONT_AND_BACK, GL2.GL_LINE );
+        	gl.glPolygonMode( GL.GL_FRONT_AND_BACK, GL2.GL_LINE );
             soup.display( drawable );
-            //gl.glPolygonMode( GL.GL_FRONT_AND_BACK, GL2.GL_FILL );
+            gl.glPolygonMode( GL.GL_FRONT_AND_BACK, GL2.GL_FILL );
         }        
 
         // TODO do I enable this now, later or earlier?
@@ -212,7 +212,7 @@ public class A3App implements SceneGraphNode, Interactor {
     private BooleanParameter drawChildVerts = new BooleanParameter( "draw child vertices", false );
     private BooleanParameter drawWireFrame  = new BooleanParameter( "draw wire frame", false );
     // TODO: Objective 1: set the drawCoarse default value to false once you've correctly created your half edge data structure
-    private BooleanParameter drawCoarse     = new BooleanParameter( "draw coarse soup mesh", true );
+    private BooleanParameter drawCoarse     = new BooleanParameter( "draw coarse soup mesh", false );
     private IntParameter subdivisionLevels  = new IntParameter("maximum subdivisions", 3, 3, Integer.MAX_VALUE );
     
     @Override
