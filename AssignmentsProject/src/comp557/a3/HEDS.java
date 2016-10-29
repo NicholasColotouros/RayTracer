@@ -1,7 +1,9 @@
 package comp557.a3;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL2;
@@ -36,12 +38,66 @@ public class HEDS {
      * @param soup
      */
     public HEDS( PolygonSoup soup ) {
+    	// Objective 1: create the half edge data structure from a polygon soup
         
-        
-        
-        
-        // TODO: Objective 1: create the half edge data structure from a polygon soup
-        
+    	// Loop through each face
+    	HashMap<String, HalfEdge> twinEdgeMap = new HashMap<String, HalfEdge>();
+    	for(int[] face : soup.faceList)
+    	{
+    		// Loop through each edge in the face to create the twin edges
+    		final List<HalfEdge> faceEdges = new ArrayList<>();
+    		for(int i = 0; i < face.length; i++)
+    		{
+    			int fromVertexIndex = face[i];
+    			int toVertexIndex;
+    			
+    			// We loop around for the next vertex if there is none
+    			if(i != face.length - 1)
+    			{
+    				toVertexIndex = face[i + 1];
+    			} else
+    			{
+    				toVertexIndex = face[0];
+    			}
+    			
+    			// Create the half edge
+    			HalfEdge halfEdge = new HalfEdge();
+    			halfEdge.head = soup.vertexList.get(toVertexIndex);
+    			faceEdges.add(halfEdge);
+    			
+    			// Check if we have a corresponding twin. If so set references accordingly
+    			// Otherwise add it in to our hash map.
+    			String twinKey = "" + toVertexIndex + "," + fromVertexIndex;
+    			if(twinEdgeMap.containsKey(twinKey))
+    			{
+    				HalfEdge twinEdge = twinEdgeMap.get(twinKey);
+    				twinEdge.twin = halfEdge;
+    				halfEdge.twin = twinEdge;
+    			}
+    			else
+    			{
+        			String key = "" + fromVertexIndex + "," + toVertexIndex;
+        			twinEdgeMap.put(key, halfEdge);    				
+    			}
+    		}
+    		
+    		// Now from our created edges set the next edge so that it loops around 
+    		for(int i = 0; i < faceEdges.size(); i++)
+    		{
+    			int nextHalfEdgeIndex;
+    			if(i != faceEdges.size() - 1)
+    			{
+    				nextHalfEdgeIndex = i + 1;
+    			} else
+    			{
+    				nextHalfEdgeIndex = 0;    				
+    			}
+				faceEdges.get(i).next = faceEdges.get(nextHalfEdgeIndex);
+    		}
+    		
+    		// Now that we have a face, use one vertex to add it to our list of faces
+    		faces.add(faceEdges.get(0));
+    	}
         
         
         
