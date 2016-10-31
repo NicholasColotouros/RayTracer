@@ -229,7 +229,7 @@ public class A3App implements SceneGraphNode, Interactor {
         reload.addActionListener( new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                loadSoupBuildAndSubdivide( soupFiles[whichSoup], subdivisionLevels.getValue() );
+                loadSoupBuildAndSubdivide( "a3data/" + soupFiles[whichSoup], subdivisionLevels.getValue() );
             }
         });
         JTextArea ta = new JTextArea(
@@ -272,10 +272,10 @@ public class A3App implements SceneGraphNode, Interactor {
                     if ( currentHE.twin != null ) currentHE = currentHE.twin;
                 } else if ( e.getKeyCode() == KeyEvent.VK_PAGE_UP ) {
                     if ( whichSoup > 0 ) whichSoup--;                    
-                    loadSoupBuildAndSubdivide( soupFiles[whichSoup], subdivisionLevels.getValue() );
+                    loadSoupBuildAndSubdivide( "a3data/" +soupFiles[whichSoup], subdivisionLevels.getValue() );
                 } else if ( e.getKeyCode() == KeyEvent.VK_PAGE_DOWN ) {
                     if ( whichSoup < soupFiles.length -1 ) whichSoup++;                    
-                    loadSoupBuildAndSubdivide( soupFiles[whichSoup], subdivisionLevels.getValue() );
+                    loadSoupBuildAndSubdivide( "a3data/" +soupFiles[whichSoup], subdivisionLevels.getValue() );
                 } else if ( e.getKeyCode() == KeyEvent.VK_HOME ) {
                     drawLevel--;
                     if ( drawLevel < 0 ) drawLevel = 0;
