@@ -100,7 +100,7 @@ public class A3App implements SceneGraphNode, Interactor {
      */
     public A3App() {    
         loadSoupBuildAndSubdivide( "a3data/" + soupFiles[0], 3 );
-        EasyViewer ev = new EasyViewer("Comp 557 Assignment 3 - YOUR NAME HERE", this, new Dimension(800, 800), new Dimension(800, 800) );
+        EasyViewer ev = new EasyViewer("Comp 557 Assignment 3 - Nicholas Colotouros", this, new Dimension(800, 800), new Dimension(800, 800) );
         ev.addInteractor(this);        
     }
     
@@ -165,9 +165,7 @@ public class A3App implements SceneGraphNode, Interactor {
             gl.glPolygonMode( GL.GL_FRONT_AND_BACK, GL2.GL_FILL );
         }        
 
-        // TODO do I enable this now, later or earlier?
-        state.useProgram( gl, usePerFragmentShading );
-
+        
         
         if ( drawHalfEdge.getValue() && currentHE != null ) {
             currentHE.display( drawable );
@@ -179,6 +177,10 @@ public class A3App implements SceneGraphNode, Interactor {
         gl.glColor3f(1,1,1);
         EasyViewer.printTextLines(drawable, soupFiles[whichSoup] + "\nlevel " + drawLevel, 40,40,20, GLUT.BITMAP_HELVETICA_18 );
         EasyViewer.endOverlay(drawable);
+        
+        // TODO do I enable this now, later or earlier?
+        state.useProgram( gl, usePerFragmentShading );
+
     }
     
     @Override
@@ -211,7 +213,6 @@ public class A3App implements SceneGraphNode, Interactor {
     private BooleanParameter drawHalfEdge   = new BooleanParameter( "draw test half edge", true );
     private BooleanParameter drawChildVerts = new BooleanParameter( "draw child vertices", false );
     private BooleanParameter drawWireFrame  = new BooleanParameter( "draw wire frame", false );
-    // TODO: Objective 1: set the drawCoarse default value to false once you've correctly created your half edge data structure
     private BooleanParameter drawCoarse     = new BooleanParameter( "draw coarse soup mesh", false );
     private IntParameter subdivisionLevels  = new IntParameter("maximum subdivisions", 3, 3, Integer.MAX_VALUE );
     

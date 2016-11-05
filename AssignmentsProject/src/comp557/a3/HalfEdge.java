@@ -9,6 +9,8 @@ import javax.vecmath.Point3d;
 /**
  * Class containing the half edge pointers, and a method for drawing
  * the half edge for debugging and evaluation.
+ * 
+ * @author Nicholas Colotouros 260531370
  */
 public class HalfEdge {
     

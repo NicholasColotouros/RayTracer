@@ -3,7 +3,6 @@ package comp557.a3;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL2;
@@ -24,7 +23,7 @@ public class HEDS {
     /**
      * List of faces where each face is defined implicity by a half edge.
      */
-    List<HalfEdge> faces = new ArrayList<HalfEdge>();
+    public List<HalfEdge> faces = new ArrayList<HalfEdge>();
     
     /**
      * Constructs an empty mesh (used when building a mesh with subdivision)
@@ -45,7 +44,7 @@ public class HEDS {
     	for(int[] face : soup.faceList)
     	{
     		// Loop through each edge in the face to create the twin edges
-    		final List<HalfEdge> faceEdges = new ArrayList<>();
+    		List<HalfEdge> faceEdges = new ArrayList<>();
     		for(int i = 0; i < face.length; i++)
     		{
     			int fromVertexIndex = face[i];
@@ -98,9 +97,64 @@ public class HEDS {
     		// Now that we have a face, use one vertex to add it to our list of faces
     		faces.add(faceEdges.get(0));
     	}
-        
-        
-        
+    	computeVertexNormals();
+    }
+    
+    // Objective 5: compute surface normal
+    public void computeVertexNormals(){
+    	// Iterate over every face
+    	for(HalfEdge face : faces) {
+    		HalfEdge faceEdge = face;
+    		
+    		// Now check if the normal has been computed in every vertex in that face
+    		do{
+    			if(faceEdge.head.n == null) calculateNormal(faceEdge);
+    			faceEdge = faceEdge.next;
+    		} while(faceEdge != face);
+        }
+    }
+    
+    // calculates the normal for the head of a given Halfedge
+    private void calculateNormal(HalfEdge h){
+    	double twoPi = Math.PI * 2.0;
+    	ArrayList<Vertex> adjVertices = getAdjacentVertices(h);
+    	double numAdjacentVertices = adjVertices.size();
+    	Vector3d tangent1 = new Vector3d(0,0,0);
+    	Vector3d tangent2 = new Vector3d(0,0,0);
+    	
+    	// Apply tangent equation as seen in SIGGRAPH 2000 notes equation 4.1 page 70:
+    	// Sum from i = 0 to #AdjacentPoints-1: (sin or cos) of (2 pi * i /#AdjacentPoints) * point i,1
+    	for(int i = 0; i < numAdjacentVertices; i++) {
+    		double iDouble = i;
+    		double pointWeight = twoPi * iDouble / numAdjacentVertices;
+    		// TODO figure out what the point order is
+    		addPointToVector(tangent1, Math.cos(pointWeight), adjVertices.get(i).p);
+    		addPointToVector(tangent2, Math.sin(pointWeight), adjVertices.get(i).p);
+    	}
+    	
+    	// Normal = t1 cross t2
+    	// Compute it and set it
+    	Vector3d normal = new Vector3d();
+    	normal.cross(tangent1, tangent2);
+    	h.head.n = normal;
+    }
+    
+    private static void addPointToVector(Vector3d pointToAddTo, double numToMultiplyBy, Point3d pointToAdd)
+    {
+    	pointToAddTo.x += numToMultiplyBy * pointToAdd.x;
+    	pointToAddTo.y += numToMultiplyBy * pointToAdd.y;
+    	pointToAddTo.z += numToMultiplyBy * pointToAdd.z;
+    }
+    
+    // The order returned is the order needed for computing the Tangents
+    private ArrayList<Vertex> getAdjacentVertices(HalfEdge h) {
+    	ArrayList<Vertex> ret = new ArrayList<>();
+    	HalfEdge edge = h;
+    	do {
+    		ret.add(edge.next.head);
+    		edge = edge.next.twin;
+    	} while( edge != h ); // TODO make sure it sorts correctly
+    	return ret;
     }
     
     /** Should delete these properly on finalize! */
