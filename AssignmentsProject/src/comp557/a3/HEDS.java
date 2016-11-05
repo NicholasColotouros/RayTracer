@@ -127,7 +127,6 @@ public class HEDS {
     	for(int i = 0; i < numAdjacentVertices; i++) {
     		double iDouble = i;
     		double pointWeight = twoPi * iDouble / numAdjacentVertices;
-    		// TODO figure out what the point order is
     		addPointToVector(tangent1, Math.cos(pointWeight), adjVertices.get(i).p);
     		addPointToVector(tangent2, Math.sin(pointWeight), adjVertices.get(i).p);
     	}
@@ -153,7 +152,10 @@ public class HEDS {
     	do {
     		ret.add(edge.next.head);
     		edge = edge.next.twin;
-    	} while( edge != h ); // TODO make sure it sorts correctly
+    	} while( edge != h );
+    	
+    	// Order is currently clockwise, so we reverse it to have counterclockwise vertex order
+    	java.util.Collections.reverse(ret);
     	return ret;
     }
     

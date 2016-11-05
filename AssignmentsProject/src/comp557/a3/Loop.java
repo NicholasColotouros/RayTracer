@@ -27,7 +27,6 @@ public class Loop {
         // Adds the additional edges to be made that make the triforce pattern and connects the faces
         heds2.faces = createInnerFaces(faces);
         heds2.computeVertexNormals();
-        // TODO make sure normals are computed
         
         return heds2;        
     }

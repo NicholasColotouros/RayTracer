@@ -126,6 +126,7 @@ public class A3App implements SceneGraphNode, Interactor {
 
     @Override
     public void display(GLAutoDrawable drawable) {
+
         GL2 gl = drawable.getGL().getGL2();
         
         if ( !drawWireFrame.getValue()) {
@@ -156,13 +157,16 @@ public class A3App implements SceneGraphNode, Interactor {
             heds[drawLevel].drawChildVertices( drawable );
         }
         
+        // Objective 6: enable that sweet shader if we're not drawing the wire frame, draw the polygon and disable
+        state.useProgram( gl, usePerFragmentShading && !drawWireFrame.getValue() );
         heds[drawLevel].display( drawable );     
+        state.useProgram(gl, false);
         
         if ( drawCoarse.getValue() ) {
-            // TODO: Objective 1: uncomment polygon mode lines to now always make coarse soup draw in wireframe
-        	gl.glPolygonMode( GL.GL_FRONT_AND_BACK, GL2.GL_LINE );
+            // Objective 1: uncomment polygon mode lines to now always make coarse soup draw in wireframe
+//        	gl.glPolygonMode( GL.GL_FRONT_AND_BACK, GL2.GL_LINE );
             soup.display( drawable );
-            gl.glPolygonMode( GL.GL_FRONT_AND_BACK, GL2.GL_FILL );
+//          gl.glPolygonMode( GL.GL_FRONT_AND_BACK, GL2.GL_FILL );
         }        
 
         
@@ -177,10 +181,6 @@ public class A3App implements SceneGraphNode, Interactor {
         gl.glColor3f(1,1,1);
         EasyViewer.printTextLines(drawable, soupFiles[whichSoup] + "\nlevel " + drawLevel, 40,40,20, GLUT.BITMAP_HELVETICA_18 );
         EasyViewer.endOverlay(drawable);
-        
-        // TODO do I enable this now, later or earlier?
-        state.useProgram( gl, usePerFragmentShading );
-
     }
     
     @Override
