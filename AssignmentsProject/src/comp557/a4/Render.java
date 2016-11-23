@@ -62,6 +62,9 @@ public class Render extends WindowAdapter {
     /** Flag used to indicate jittering **/
     public boolean useJittering;
     
+    /** The number of threads to use **/
+    public int numThreads;
+    
     /**
      * Default constructor. Creates a default camera and black background color.
      * @param dataNode

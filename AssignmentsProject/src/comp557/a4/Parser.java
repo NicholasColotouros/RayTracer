@@ -317,7 +317,15 @@ public class Parser {
             render.useJittering = s.nextBoolean(); 
 			s.close();
 		}
-    	NodeList nodeList = dataNode.getChildNodes();
+		Node threads = dataNode.getAttributes().getNamedItem("threads");
+		if ( threads != null ) {
+        	Scanner s = new Scanner( threads.getNodeValue());
+            render.numThreads = s.nextInt(); 
+			s.close();
+		}
+		else
+			render.numThreads = 1;
+		NodeList nodeList = dataNode.getChildNodes();
     	for (int i = 0; i < nodeList.getLength(); i++) {
     		Node n = nodeList.item(i);
             // skip all text, just process the ELEMENT_NODEs
