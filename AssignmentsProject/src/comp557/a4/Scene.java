@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+
 import javax.vecmath.Color3f;
 import javax.vecmath.Color4f;
 import javax.vecmath.Point3d;
@@ -52,38 +54,52 @@ public class Scene {
         Ray ray = new Ray();
         IntersectResult result = new IntersectResult();
         ArrayList<Color4f> colours = new ArrayList<>();
+        Random rng = new Random();
+        int numSamples = ((render.samples < 1) ? 1 : render.samples);
+        
         
         for ( int i = 0; i < h && !render.isDone(); i++ ) {
             for ( int j = 0; j < w && !render.isDone(); j++ ) {
+            	for ( int k = 0; k < numSamples; k++) {
+            		// TODO make the supersampling grid, apply jittering
+            		// If we're using supersampling, apply the offset
+            		if (numSamples > 1) {
+            			offset[0] = rng.nextDouble() - 0.5;
+            			offset[1] = rng.nextDouble() - 0.5;
+            		}
+            		
+	                // Objective 1: generate a ray (use the generateRay method)
+	            	generateRay(j, i, offset, cam, ray);
+	            	
+	                // Objective 2: test for intersection with scene surfaces
+	            	result.clear();
+	            	for(Intersectable intersectable : surfaceList) {
+	            		intersectable.intersect(ray, result);
+	            	}
+	            	
+	                
+	            	// Get the color for the ray and update the render image
+	            	
+	            	// No intersection
+	            	if(result.t == Double.POSITIVE_INFINITY) {
+	            		Color4f bgColor = new Color4f(render.bgcolor.x, render.bgcolor.y, render.bgcolor.z, 1f);
+	            		colours.add(bgColor);
+	            	}
+	            	
+	            	// Intersection
+	            	else { 
+	                    colours.add(calculateColor(ray, result));
+	            	}
+	            }
             	
-                // Objective 1: generate a ray (use the generateRay method)
-            	generateRay(j, i, offset, cam, ray);
+            	if(colours.size() == 1)
+            		argb = convertColorToARGB(colours.get(0));
+            	else
+            		argb = convertColorToARGB(averageColours(colours));
             	
-                // Objective 2: test for intersection with scene surfaces
-            	// TODO make the surfaceList a scenenode so i don't need this
-            	result.clear();
-            	for(Intersectable intersectable : surfaceList) {
-            		intersectable.intersect(ray, result);
-            	}
-            	
-                
-            	// Get the color for the ray and update the render image
-            	
-            	// No intersection
-            	if(result.t == Double.POSITIVE_INFINITY) {
-            		Color4f bgColor = new Color4f(render.bgcolor.x, render.bgcolor.y, render.bgcolor.z, 1f);
-            		colours.add(bgColor);
-            	}
-            	
-            	// Intersection
-            	else { 
-                    colours.add(calculateColor(ray, result));
-            	}
-            	
-            	argb = convertColorToARGB(colours.get(0));
             	render.setPixel(j, i, argb);
             	colours.clear();
-            }
+	        }
         }
         
         // save the final render image
@@ -94,18 +110,50 @@ public class Scene {
         
     }
     
+    public Color4f averageColours (List<Color4f> colours) {
+    	Color4f avgColours = new Color4f();
+    	for( Color4f c : colours ) {
+    		avgColours.x += c.x;
+    		avgColours.y += c.y;
+    		avgColours.z += c.z;
+    		avgColours.w += c.w;
+    	}
+    	
+    	float numColours = colours.size();
+    	avgColours.x /= numColours;
+		avgColours.y /= numColours;
+		avgColours.z /= numColours;
+		avgColours.w /= numColours;
+    	
+    	return avgColours;
+    }
+    
     // Does the lighting computations
     public Color4f calculateColor(Ray ray, IntersectResult result) {
     	Material material = result.material;
     	Vector3d normalizedMaterialNormal = new Vector3d(result.n);
     	normalizedMaterialNormal.normalize();
         		
-    	// TODO Ambient lighting this is Ia where is Ka?
     	Color3f reflectedAmbient = new Color3f(ambient);
-    	
     	Color3f reflectedSpecular = new Color3f();
     	Color3f reflectedDiffuse = new Color3f();
+    	
+    	// Ambient lighting
+    	reflectedAmbient.x *= material.diffuse.x; 
+    	reflectedAmbient.y *= material.diffuse.y;
+    	reflectedAmbient.z *= material.diffuse.z;
+    	
+    	
+    	
+    	Ray shadowRay = new Ray();
+    	IntersectResult shadowResult = new IntersectResult();
     	for(Light light : lights.values()) {
+    		
+    		// Before proceding check to make sure light has an effect at all
+    		shadowResult.clear();
+    		if (inShadow(result, light, surfaceList, shadowResult, shadowRay))
+    			continue;
+    		
     		Vector3d lightVector = new Vector3d();
     		lightVector.sub(light.from, result.p);
     		lightVector.normalize();
@@ -166,11 +214,10 @@ public class Scene {
      * @param ray Contains the generated ray.
      */
 	public static void generateRay(final int i, final int j, final double[] offset, final Camera cam, Ray ray) {
-		// TODO there is either a bug in this or in the camera code. Something is making the y inverted
 		// Objective 1: finish this method.  
 		// Formula from slides that map coordinates of image to pixel
-		double u = cam.l + ( cam.r-cam.l ) * ( ( i + 0.5 + offset[0] ) / cam.imageSize.width );
-		double v = cam.b + ( cam.t-cam.b ) * ( ( j + 0.5 + offset[1] ) / cam.imageSize.height );
+		double u = cam.l + ( cam.r-cam.l ) * ( ( i + 0.5) / cam.imageSize.width );
+		double v = (cam.b + ( cam.t-cam.b ) * ( ( j + 0.5 + offset[1] ) / cam.imageSize.height ));
 		
 		Vector3d vFrame = new Vector3d(cam.v);
 		vFrame.scale(v);
@@ -207,10 +254,28 @@ public class Scene {
 	 * 
 	 * @return True if a point is in shadow, false otherwise. 
 	 */
-	public static boolean inShadow(final IntersectResult result, final Light light, final SceneNode root, IntersectResult shadowResult, Ray shadowRay) {
+	public static boolean inShadow(final IntersectResult result, final Light light, final List<Intersectable> surfaces, IntersectResult shadowResult, Ray shadowRay) {
+		// Objective 5: finish this method and use it in your lighting computation
 		
-		// TODO: Objective 5: finish this method and use it in your lighting computation
+		// Cast a ray from the point of intersection to the light and see if it hits anything
+		result.n.normalize();
+		Vector3d tinyNormal = new Vector3d(result.n);
+		tinyNormal.scale(0.001);
 		
-		return false;
+		// Move the start by a tiny bit along the normal so it doesn't self shadow
+		shadowRay.eyePoint = new Point3d(result.p);
+		shadowRay.eyePoint.add(tinyNormal);
+		
+		Vector3d shadowDirection = new Vector3d();
+		shadowDirection.sub(light.from, shadowRay.eyePoint);
+		shadowRay.viewDirection = shadowDirection;
+		
+		for(Intersectable surface : surfaces) {
+			surface.intersect(shadowRay, shadowResult);
+		}
+		
+		// t = 1 means we hit something between the collision point between
+		// the light from and the eye point exclusively
+		return shadowResult.t > 0.0 && shadowResult.t < 1.0;
 	}    
 }

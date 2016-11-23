@@ -22,7 +22,6 @@ public class Box extends Intersectable {
 
 	@Override
 	public void intersect(Ray ray, IntersectResult result) {
-		// TODO: Objective 6: Finish this class
 		// Based on the algorithm provided by 
 		// http://www.cs.utah.edu/~awilliam/box/box.pdf
 		double tmin, tmax, txmin, txmax, tymin, tymax, tzmin, tzmax;
@@ -73,8 +72,6 @@ public class Box extends Intersectable {
 		// If we have a valid intersection compute the normal and update the result
 		double t = Math.max(tmin, tzmin);
 		if(t > 0 && t < result.t) {
-			// TODO Check the math on this, there might be a bug
-			
 			// Start by computing the normal
 			// This is done by figuring out which slab we're on
 			// and setting one of the x,y,z values to 1 or -1 

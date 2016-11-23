@@ -43,14 +43,16 @@ public class Sphere extends Intersectable {
     	double a = ray.viewDirection.dot(ray.viewDirection);
     	double b = ray.viewDirection.dot(eyeVector);
     	double c = eyeVector.dot(eyeVector) - Math.pow(radius, 2);
-    	double discriminant = Math.pow(b,2) - a * c; // Formula from textbook page 77
+    	double ac = a*c;
+    	double discriminant = Math.pow(2*b,2) - 4*ac;
     	
     	//Positive therefore two intersections
     	Double t = null;
     	if (discriminant > 0)
     	{
-    		double t1 = ( -b - discriminant ) / a;
-    		double t2 = ( -b + discriminant ) / a;
+    		double delta = Math.sqrt(Math.pow(b, 2) - ac); 
+    		double t1 = (-b + delta) / a;
+    		double t2 = ( -b - delta ) / a;
     		if ( t1 > 0 && t2 > 0 )
     		{
     			t = Math.min(t1, t2);
@@ -68,7 +70,6 @@ public class Sphere extends Intersectable {
     	
     	if(t != null && t > 0 && t < result.t)
     	{
-
     		result.t = t;
     		result.p = new Point3d();
     		ray.getPoint(result.t, result.p);

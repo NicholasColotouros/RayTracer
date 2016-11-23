@@ -311,6 +311,12 @@ public class Parser {
             render.samples = s.nextInt(); 
 			s.close();
 		}
+		Node jitter = dataNode.getAttributes().getNamedItem("jitter");
+		if ( jitter != null) {
+			Scanner s = new Scanner( jitter.getNodeValue());
+            render.useJittering = s.nextBoolean(); 
+			s.close();
+		}
     	NodeList nodeList = dataNode.getChildNodes();
     	for (int i = 0; i < nodeList.getLength(); i++) {
     		Node n = nodeList.item(i);

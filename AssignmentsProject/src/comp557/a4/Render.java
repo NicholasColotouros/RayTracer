@@ -59,6 +59,9 @@ public class Render extends WindowAdapter {
     /** Flag to indicate when rendering should stop */
     private boolean done;
     
+    /** Flag used to indicate jittering **/
+    public boolean useJittering;
+    
     /**
      * Default constructor. Creates a default camera and black background color.
      * @param dataNode

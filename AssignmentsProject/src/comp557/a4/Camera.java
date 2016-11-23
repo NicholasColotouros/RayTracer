@@ -44,10 +44,7 @@ public class Camera {
     	// do nothing
     }
     
-    // Initializes the axes of the camera
     public void initialize(){
-		// TODO something is wrong in this or ray casting. Everything is upside down and boxes are skewed
-    	// Can we actually take up for granted?
     	double aspectRatio = (double) imageSize.width / imageSize.height;
 		double fovyRad = Math.toRadians(fovy);
 	
@@ -57,19 +54,17 @@ public class Camera {
 		t = Math.tan(fovyRad/2.0);
 		b = -t;
 		
-		// Find our 3 axes
-		// Cam is looking up, normalized
-		v = (Vector3d) up.clone();
-		v.normalize();
-		
-		// w is the direction we're looking away from, normalized
 		w = new Vector3d();
-		w.sub(from, to);
+		w.sub(to, from);
+		w.negate();
 		w.normalize();
 		
-		// u is our third axis which is the cross between v and w
 		u = new Vector3d();
-		u.cross(v, w);
+		u.cross(up, w);
+		u.normalize();
+		
+		v = new Vector3d();
+		v.cross(u, w);
     }
 }
 
