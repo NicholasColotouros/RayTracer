@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.locks.ReentrantLock;
 
 import javax.vecmath.Color3f;
 import javax.vecmath.Color4f;
@@ -13,7 +12,6 @@ import javax.vecmath.Vector3d;
 
 // Raycasters used for multithreading in the scene class
 public class RaycasterThread implements Runnable {
-	private static ReentrantLock setPixelLock = new ReentrantLock();
 	
 	// References to the properties in the Scene class
 	public List<Intersectable> surfaceList;
@@ -26,8 +24,17 @@ public class RaycasterThread implements Runnable {
     public int starti, endi;
     public int startj, endj;
     
+    private static final int MAX_REFLECTION_DEPTH = 3;
+    
+    // Antialiasing variables
+    private int subPixelGridSize;
+    private int leftoverRays;
+    private double distanceBetweenGridPoints;
+    private Random rng;
+    
     public RaycasterThread ( List<Intersectable> s, Map<String, Light> l, Render r, Color3f a, Camera c, 
-    		int si, int ei, int sj, int ej) {
+    		int si, int ei, int sj, int ej,
+    		int spgs, int lor, double distbwpts) {
     	surfaceList = s;
     	lights = l;
     	render = r;
@@ -38,6 +45,12 @@ public class RaycasterThread implements Runnable {
     	endi = ei;
     	startj = sj;
     	endj = ej;
+    	
+    	subPixelGridSize = spgs;
+    	leftoverRays = lor;
+    	distanceBetweenGridPoints = distbwpts;
+    	
+    	rng = new Random();
     }
 	
 	@Override
@@ -49,55 +62,55 @@ public class RaycasterThread implements Runnable {
         Ray ray = new Ray();
         IntersectResult result = new IntersectResult();
         ArrayList<Color4f> colours = new ArrayList<>();
-        Random rng = new Random();
-        int numSamples = ((render.samples < 1) ? 1 : render.samples);
-        
         
         for ( int i = starti; i < endi && !render.isDone(); i++ ) {
             for ( int j = startj; j < endj && !render.isDone(); j++ ) {
-            	for ( int k = 0; k < numSamples; k++) {
-            		// TODO make the supersampling grid, apply jittering
-            		// If we're using supersampling, apply the offset
-            		if (numSamples > 1) {
-            			offset[0] = rng.nextDouble() - 0.5;
-            			offset[1] = rng.nextDouble() - 0.5;
-            		}
-            		
-	                // Objective 1: generate a ray (use the generateRay method)
-	            	generateRay(j, i, offset, camera, ray);
-	            	
-	                // Objective 2: test for intersection with scene surfaces
-	            	result.clear();
-	            	for(Intersectable intersectable : surfaceList) {
-	            		intersectable.intersect(ray, result);
-	            	}
-	            	
-	                
-	            	// Get the color for the ray and update the render image
-	            	
-	            	// No intersection
-	            	if(result.t == Double.POSITIVE_INFINITY) {
-	            		Color4f bgColor = new Color4f(render.bgcolor.x, render.bgcolor.y, render.bgcolor.z, 1f);
-	            		colours.add(bgColor);
-	            	}
-	            	
-	            	// Intersection
-	            	else { 
-	                    colours.add(calculateColor(ray, result));
-	            	}
-	            }
-            	
+        		// Supersampling offset
+        		// - 0.5 because the generate ray method adds 0.5 to make the ray at the center of the pixel.
+
+            	// For supersampling make a grid of the number of samples and distribute rays evenly on a grid within the pixel.
+        		for(int x = 0; x < subPixelGridSize; x++) {
+        			for(int y = 0; y < subPixelGridSize; y++) {
+        				
+    					offset[0] = distanceBetweenGridPoints * x - 0.5;
+    					offset[1] = distanceBetweenGridPoints * y - 0.5;
+        			
+    					// If we have jittering, add in some random movement within at most the distance of a subpixel
+    					if (render.useJittering) {
+    						offset[0] += 2*distanceBetweenGridPoints * rng.nextDouble() - distanceBetweenGridPoints;
+    						offset[1] += 2*distanceBetweenGridPoints * rng.nextDouble() - distanceBetweenGridPoints;
+    					}
+    					
+        				colours.add(castRayAndGetColour(i, j, offset, camera, ray, result));
+        			}
+        		}
+        		
+        		// Since we can have a number of samples that are not always square numbers, cast the remaining
+        		// rays randomly within the subpixel. Jitter doesn't matter in this case because it's already random
+        		for(int k = 0; k < leftoverRays && render.samples > 1; k++) {
+        			offset[0] = rng.nextDouble() - 0.5;
+    				offset[1] = rng.nextDouble() - 0.5;
+    				colours.add(castRayAndGetColour(i, j, offset, camera, ray, result));
+        		}
+        		
+        		// AA is off (1 sample)
+        		if (render.samples == 1) {
+        			if ( render.useJittering) {
+        				offset[0] += distanceBetweenGridPoints * rng.nextDouble();
+						offset[1] += distanceBetweenGridPoints * rng.nextDouble();
+        			}
+        			colours.add(castRayAndGetColour(i, j, offset, camera, ray, result));
+        		}
+        		
+        		// Now that we've cast all of our rays, set the pixel colour
             	if(colours.size() == 1)
             		argb = convertColorToARGB(colours.get(0));
             	else
             		argb = convertColorToARGB(averageColours(colours));
             	
-            	// TODO figure out if this is thread safe and remove
-            	setPixelLock.lock();
             	render.setPixel(j, i, argb);
-            	setPixelLock.unlock();
-            	colours.clear();
-	        }
+            	colours.clear();                
+            }
         }        
 	}
 	
@@ -115,12 +128,44 @@ public class RaycasterThread implements Runnable {
 		avgColours.y /= numColours;
 		avgColours.z /= numColours;
 		avgColours.w /= numColours;
-    	
+		avgColours.clamp(0f, 1f);
+		
     	return avgColours;
     }
     
+    public Color4f castRayAndGetColour(final int i, final int j, final double[] offset, final Camera cam, Ray ray, IntersectResult result) {
+    	// Objective 1: generate a ray (use the generateRay method)
+    	generateRay(j, i, offset, camera, ray);
+    	
+        // Objective 2: test for intersection with scene surfaces
+    	result.clear();
+    	for(Intersectable intersectable : surfaceList) {
+    		intersectable.intersect(ray, result);
+    	}
+    	
+        
+    	// Get the color for the ray and update the render image
+    	
+    	// No intersection
+    	if(result.t == Double.POSITIVE_INFINITY) {
+    		ray.viewDirection.normalize();
+    		return new Color4f(
+    							render.bgcolor.x * (float) Math.abs( ray.viewDirection.x), 
+    							render.bgcolor.y * (float) Math.abs(ray.viewDirection.y), 
+    							render.bgcolor.z * (float) Math.abs(ray.viewDirection.z), 
+    							1f
+    					);
+    	}
+    	
+    	// Intersection
+    	else { 
+            return calculateColor(ray, result, 0);
+    	}
+    }
+    
     // Does the lighting computations
-    public Color4f calculateColor(Ray ray, IntersectResult result) {
+    // TODO something is off here
+    public Color4f calculateColor(Ray ray, IntersectResult result, int reflectionDepth) {
     	Material material = result.material;
     	Vector3d normalizedMaterialNormal = new Vector3d(result.n);
     	normalizedMaterialNormal.normalize();
@@ -140,6 +185,12 @@ public class RaycasterThread implements Runnable {
     	IntersectResult shadowResult = new IntersectResult();
     	for(Light light : lights.values()) {
     		
+    		// TODO: reflection calcs here
+    		if ( result.material.isReflective && reflectionDepth < MAX_REFLECTION_DEPTH) {
+    			Vector3d reflectedDirection = new Vector3d();
+    			
+    		}
+    		
     		// Before proceding check to make sure light has an effect at all
     		shadowResult.clear();
     		if (inShadow(result, light, surfaceList, shadowResult, shadowRay))
@@ -149,11 +200,6 @@ public class RaycasterThread implements Runnable {
     		lightVector.sub(light.from, result.p);
     		lightVector.normalize();
     		
-    		Vector3d cameraVector = new Vector3d();
-    		cameraVector.sub(ray.eyePoint, result.p);
-    		cameraVector.normalize();
-    		
-    		
     		// Diffuse lighting
     		float diffuseScalar = (float) (light.power * Math.max(0.0, normalizedMaterialNormal.dot(lightVector)));
     		Color3f diffuseColour = new Color3f(
@@ -161,20 +207,26 @@ public class RaycasterThread implements Runnable {
     									material.diffuse.y * diffuseScalar * light.color.y,
     									material.diffuse.z * diffuseScalar * light.color.z
     								);
+    		
+    		diffuseColour.clamp(0f, 1f);
     		reflectedDiffuse.add(diffuseColour);
     		
     		// Specular lighting
+    		Vector3d cameraVector = new Vector3d();
+    		cameraVector.sub(ray.eyePoint, result.p);
+    		cameraVector.normalize();
+    		
     		Vector3d h = new Vector3d(lightVector);
     		h.add(cameraVector);
     		h.normalize();
     		
     		float specularScalar = (float) Math.pow( Math.max(0.0, normalizedMaterialNormal.dot(h) ), material.shinyness);
-    		specularScalar *= light.power;
     		Color3f specularColour = new Color3f(
     									material.specular.x * specularScalar * light.color.x,
     									material.specular.y * specularScalar * light.color.y,
     									material.specular.z * specularScalar * light.color.z
     								);
+    		specularColour.clamp(0f, 1f);
     		reflectedSpecular.add(specularColour);
     	}
     	

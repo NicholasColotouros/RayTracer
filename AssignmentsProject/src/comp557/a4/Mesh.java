@@ -26,66 +26,76 @@ public class Mesh extends Intersectable {
 		
 	@Override
 	public void intersect(Ray ray, IntersectResult result) {
-		
-		// TODO: Objective 7: Bonus: finish this class as a bonus objective
-		// Based on https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
-		double t = Double.NEGATIVE_INFINITY;
-		Vector3d n;
-		
-		for(int[] face : soup.faceList) {
-			Point3d vertex1 = soup.vertexList.get(face[0]).p;
-			Point3d vertex2 = soup.vertexList.get(face[1]).p;
-			Point3d vertex3 = soup.vertexList.get(face[2]).p;
-			
-			// TODO am i subbing the right way?
-			Vector3d edge1 = new Vector3d(
-										vertex1.x - vertex2.x,
-										vertex1.y - vertex2.y,
-										vertex1.z - vertex2.z 
-									);
-			Vector3d edge2 = new Vector3d(
-										vertex1.x - vertex3.x,
-										vertex1.y - vertex3.y,
-										vertex1.z - vertex3.z 
-									);
-			
-			Vector3d p = new Vector3d();
-			p.cross(ray.viewDirection, edge2);
-			
-			double determinant = edge1.dot(p);
-			
-			// Don't care if it's the back face
-			if(determinant > -EPSILON && determinant < EPSILON) 
+		for(int[] vertices : soup.faceList)
+		{
+			// Don't want the program to crash if it's not a triangular mesh
+			if(vertices.length != 3)
 				continue;
-			double invDeterminant = 1.0/determinant;
-			Vector3d asdf = new Vector3d();
-			asdf.sub(ray.eyePoint, vertex1);
 			
-			double u = asdf.dot(p) * invDeterminant;
+			final Point3d p1 = soup.vertexList.get(vertices[0]).p;
+			final Point3d p2 = soup.vertexList.get(vertices[1]).p;
+			final Point3d p3 = soup.vertexList.get(vertices[2]).p;
 			
-			// The intersection lies outside of the triangle
-			if(u < 0.f || u > 1.f) 
+			final Vector3d v1 = new Vector3d();
+			v1.sub(p2, p1);
+			final Vector3d v2 = new Vector3d();
+			v2.sub(p3, p1);
+
+			// Figure out which normal is pointing towards the eye
+			Vector3d normal1 = new Vector3d();
+			Vector3d normal2 = new Vector3d();
+			normal1.cross(v1, v2);
+			normal2.cross(v2, v1);
+			
+			Vector3d planeNormal;
+			if( normal1.dot(ray.viewDirection) < normal2.dot(ray.viewDirection))
+				planeNormal = normal1;
+			else
+				planeNormal = normal2;
+
+			// Find t and the point it corresponds to on the plane
+			Vector3d p1MinusEye = new Vector3d();
+			p1MinusEye.sub(p1, ray.eyePoint);
+			double t = p1MinusEye.dot(planeNormal) / ray.viewDirection.dot(planeNormal);
+			
+			// stop if what we intersected is further than our closest result
+			if (t >= result.t || t <= 0)
 				continue;
-			Vector3d q = new Vector3d();
-			q.cross(asdf, edge1);
-			double v = ray.viewDirection.dot(q) * invDeterminant;
 			
-			//The intersection lies outside of the triangle
-			if(v < 0.f || u + v  > 1.f) return;
+			Point3d p = new Point3d();
+			ray.getPoint(t, p);
 			
-			double potentialT = edge2.dot(q) * invDeterminant;
-			if (potentialT > EPSILON && potentialT < t) {
-				t = potentialT;
+			// https://www.cs.princeton.edu/courses/archive/fall00/cs426/lectures/raycast/sld018.htm
+			// Check if the point is in the triangle
+			// If it is, we have a closer intersection
+			Vector3d w1 = new Vector3d();
+			w1.sub(p2, p1);
+			Vector3d w2 = new Vector3d();
+			w2.sub(p3, p2);
+			Vector3d w3 = new Vector3d();
+			w3.sub(p1, p3);
+			
+			Vector3d u1 = new Vector3d();
+			u1.sub(p, p1);
+			Vector3d u2 = new Vector3d();
+			u2.sub(p, p2);
+			Vector3d u3 = new Vector3d();
+			u3.sub(p, p3);
+			
+			Vector3d x1 = new Vector3d();
+			x1.cross(w1, u1);
+			Vector3d x2 = new Vector3d();
+			x2.cross(w2, u2);
+			Vector3d x3 = new Vector3d();
+			x3.cross(w3, u3);
+			
+			if (x1.dot(planeNormal) > 0 && x2.dot(planeNormal) > 0 && x3.dot(planeNormal) > 0) {
+				result.t = t;
+				result.n = planeNormal;
+				result.p = p;
+				result.n.normalize();
+				result.material = material;
 			}
 		}
-		
-		if (t != Double.NEGATIVE_INFINITY ) {
-			result.t = t;
-			result.p = new Point3d();
-			ray.getPoint(t, result.p);
-			result.material = material;
-			result.n = new Vector3d();
-		}
 	}
-
 }

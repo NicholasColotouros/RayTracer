@@ -4,12 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 import javax.vecmath.Color3f;
-import javax.vecmath.Color4f;
-import javax.vecmath.Point3d;
-import javax.vecmath.Vector3d;
 
 /**
  * Simple scene loader based on XML file format.
@@ -49,23 +45,41 @@ public class Scene {
         
         // Threads are subdivided by column because costly operations tend to be
         // in the center of the image instead of at the top. This way the harder bits
-        // are kind of distributed amoung threads.
+        // are kind of distributed among threads.
+        
+        // Calculate AA values
+        int numSamples = render.samples;
+        int subPixelGridSize = (int) Math.sqrt(numSamples);
+        int leftoverRays = (int) (numSamples - Math.pow(subPixelGridSize, 2));
+        double distanceBetweenGidPoints = 0;
+        
+        // Makes things easier when subpixel grid is 1x1
+        if (subPixelGridSize == 1) {
+        	leftoverRays = render.samples;
+        	subPixelGridSize = 0;
+        }
+        else { 
+        	distanceBetweenGidPoints = 1.0 / (subPixelGridSize - 1);
+        }
+        
         Thread[] threads = new Thread[numThreads];
-        int previousi = 0;
-        final int colsPerThread = h / numThreads;
+        int previousj = 0;
+        final int colsPerThread = w / numThreads;
         for(int t = 0; t < numThreads - 1; t++) {
-        	int endi = previousi + colsPerThread;
+        	int endj = previousj + colsPerThread;
         	
-        	RaycasterThread rct = new RaycasterThread(surfaceList, lights, render, ambient, cam, previousi, endi, 0, w);
+        	RaycasterThread rct = new RaycasterThread(surfaceList, lights, render, ambient, cam, 
+        			0, h, previousj, endj, subPixelGridSize, leftoverRays, distanceBetweenGidPoints);
         	Thread thread = new Thread(rct);
         	threads[t] = thread;
         	thread.start();
         	
-        	previousi = endi;
+        	previousj = endj;
         }
         
         // ensures we don't leave one thread out by rounding error
-        RaycasterThread lastRCT = new RaycasterThread(surfaceList, lights, render, ambient, cam, previousi, h, 0, w);
+        RaycasterThread lastRCT = new RaycasterThread(surfaceList, lights, render, ambient, cam, 
+        		0, h, previousj, w, subPixelGridSize, leftoverRays, distanceBetweenGidPoints);
         Thread lastThread = new Thread(lastRCT);
         threads[ numThreads -1 ] = lastThread;
         lastThread.start();

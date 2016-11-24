@@ -26,6 +26,9 @@ public class Material {
     /** Specular hardness, or exponent, default to a reasonable value */ 
     public float shinyness = 64;
  
+    /** Used to determine if a reflection is to be made */
+    public boolean isReflective = false;
+    
     /**
      * Default constructor
      */
