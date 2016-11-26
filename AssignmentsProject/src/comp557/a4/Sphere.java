@@ -79,7 +79,5 @@ public class Sphere extends Intersectable {
     		result.n = n;
     		result.material = material;
     	}
-	
     }
-    
 }
