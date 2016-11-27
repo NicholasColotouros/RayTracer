@@ -23,6 +23,9 @@ public class Material {
     /** Specular colour, default to black (no specular highlight) */
     public Color4f specular = new Color4f(0,0,0,0);
     
+    /** Reflective colour **/
+    public Color4f reflective = new Color4f(1,1,1,1);
+    
     /** Specular hardness, or exponent, default to a reasonable value */ 
     public float shinyness = 64;
  

@@ -167,12 +167,12 @@ public class RaycasterThread implements Runnable {
     // TODO something is off here
     public Color4f calculateColor(Ray ray, IntersectResult result, int reflectionDepth) {
     	Material material = result.material;
-    	Vector3d normalizedMaterialNormal = new Vector3d(result.n);
-    	normalizedMaterialNormal.normalize();
-        		
+    	result.n.normalize();
+    	
     	Color3f reflectedAmbient = new Color3f(ambient);
     	Color3f reflectedSpecular = new Color3f();
     	Color3f reflectedDiffuse = new Color3f();
+    	Color3f reflectedReflection = new Color3f();
     	
     	// Ambient lighting
     	reflectedAmbient.x *= material.diffuse.x; 
@@ -183,61 +183,115 @@ public class RaycasterThread implements Runnable {
     	
     	Ray shadowRay = new Ray();
     	IntersectResult shadowResult = new IntersectResult();
+    	
+    	// Reflections, if any
+    	if ( result.material.isReflective && reflectionDepth < MAX_REFLECTION_DEPTH) {
+			Color3f reflectedColour = calculateReflectiveColour(ray, result, shadowRay, shadowResult, reflectionDepth);
+			reflectedColour.clamp(0f, 1f);
+			reflectedReflection.add(reflectedColour);
+		}
+		
+		
     	for(Light light : lights.values()) {
-    		
-    		// TODO: reflection calcs here
-    		if ( result.material.isReflective && reflectionDepth < MAX_REFLECTION_DEPTH) {
-    			Vector3d reflectedDirection = new Vector3d();
-    			
-    		}
-    		
+
     		// Before proceding check to make sure light has an effect at all
     		shadowResult.clear();
     		if (inShadow(result, light, surfaceList, shadowResult, shadowRay))
     			continue;
+    		
     		
     		Vector3d lightVector = new Vector3d();
     		lightVector.sub(light.from, result.p);
     		lightVector.normalize();
     		
     		// Diffuse lighting
-    		float diffuseScalar = (float) (light.power * Math.max(0.0, normalizedMaterialNormal.dot(lightVector)));
-    		Color3f diffuseColour = new Color3f(
-    									material.diffuse.x * diffuseScalar * light.color.x,
-    									material.diffuse.y * diffuseScalar * light.color.y,
-    									material.diffuse.z * diffuseScalar * light.color.z
-    								);
-    		
-    		diffuseColour.clamp(0f, 1f);
+    		Color3f diffuseColour = calculateDiffuseColour(light, ray, result, lightVector);
+    		Color3f specularColour = calculateSpecularColour(light, ray, result, lightVector);
+
     		reflectedDiffuse.add(diffuseColour);
-    		
-    		// Specular lighting
-    		Vector3d cameraVector = new Vector3d();
-    		cameraVector.sub(ray.eyePoint, result.p);
-    		cameraVector.normalize();
-    		
-    		Vector3d h = new Vector3d(lightVector);
-    		h.add(cameraVector);
-    		h.normalize();
-    		
-    		float specularScalar = (float) Math.pow( Math.max(0.0, normalizedMaterialNormal.dot(h) ), material.shinyness);
-    		Color3f specularColour = new Color3f(
-    									material.specular.x * specularScalar * light.color.x,
-    									material.specular.y * specularScalar * light.color.y,
-    									material.specular.z * specularScalar * light.color.z
-    								);
-    		specularColour.clamp(0f, 1f);
     		reflectedSpecular.add(specularColour);
     	}
     	
     	
     	reflectedAmbient.add(reflectedDiffuse);
     	reflectedAmbient.add(reflectedSpecular);
+    	reflectedAmbient.add(reflectedReflection);
 
     	Color4f reflectedLight = new Color4f(reflectedAmbient.x, reflectedAmbient.y, reflectedAmbient.z, 1);
     	reflectedLight.clamp(0f, 1f);
 		return reflectedLight;
 	}
+    
+    private Color3f calculateReflectiveColour(Ray ray, IntersectResult result, Ray shadowRay, IntersectResult shadowResult, int recursionDepth) {
+    	
+    	// Calculate the new ray to cast for reflections
+    	Vector3d reflectedDirection = new Vector3d(result.n);
+    	reflectedDirection.scale(-2 * ray.viewDirection.dot(result.n));
+    	reflectedDirection.add(ray.viewDirection, reflectedDirection);
+    	reflectedDirection.normalize();
+    	
+    	Vector3d tinyNormal = new Vector3d(result.n);
+		tinyNormal.scale(0.001);
+		
+		shadowRay.eyePoint = new Point3d(result.p);
+		shadowRay.eyePoint.add(tinyNormal);
+		shadowRay.viewDirection = reflectedDirection;
+		
+		shadowResult.clear();
+    	for(Intersectable surface : surfaceList) {
+			surface.intersect(shadowRay, shadowResult);
+		}
+		Color4f km = result.material.reflective;
+		Color4f reflectedColour; 
+		if(shadowResult.t < Double.POSITIVE_INFINITY)
+			reflectedColour = calculateColor(shadowRay, shadowResult, recursionDepth + 1);
+		else
+			reflectedColour = new Color4f(
+					render.bgcolor.x * (float) Math.abs( ray.viewDirection.x), 
+					render.bgcolor.y * (float) Math.abs(ray.viewDirection.y), 
+					render.bgcolor.z * (float) Math.abs(ray.viewDirection.z), 
+					1f
+			);
+		Color3f ret = new Color3f(
+				reflectedColour.x * km.x, 
+				reflectedColour.y * km.y, 
+				reflectedColour.z * km.z
+			);
+		return ret;
+    }
+    
+    private Color3f calculateSpecularColour(Light light, Ray ray, IntersectResult result, Vector3d lightVector){
+    	Material material = result.material;
+    	Vector3d cameraVector = new Vector3d();
+		cameraVector.sub(ray.eyePoint, result.p);
+		cameraVector.normalize();
+		
+		Vector3d h = new Vector3d(lightVector);
+		h.add(cameraVector);
+		h.normalize();
+		
+		float specularScalar = (float) Math.pow( Math.max(0.0, result.n.dot(h) ), material.shinyness);
+		Color3f specularColour = new Color3f(
+									material.specular.x * specularScalar * light.color.x,
+									material.specular.y * specularScalar * light.color.y,
+									material.specular.z * specularScalar * light.color.z
+								);
+		specularColour.clamp(0f, 1f);
+		return specularColour;
+    }
+    
+    private Color3f calculateDiffuseColour(Light light, Ray ray, IntersectResult result, Vector3d lightVector){
+    	Material material = result.material;
+    	float diffuseScalar = (float) (light.power * Math.max(0.0, result.n.dot(lightVector)));
+		Color3f diffuseColour = new Color3f(
+									material.diffuse.x * diffuseScalar * light.color.x,
+									material.diffuse.y * diffuseScalar * light.color.y,
+									material.diffuse.z * diffuseScalar * light.color.z
+								);
+		
+		diffuseColour.clamp(0f, 1f);
+		return diffuseColour;
+    }
 
 	public static int convertColorToARGB(Color4f c){
     	int r = (int)(255*c.x);
@@ -301,7 +355,6 @@ public class RaycasterThread implements Runnable {
 		// Objective 5: finish this method and use it in your lighting computation
 		
 		// Cast a ray from the point of intersection to the light and see if it hits anything
-		result.n.normalize();
 		Vector3d tinyNormal = new Vector3d(result.n);
 		tinyNormal.scale(0.001);
 		

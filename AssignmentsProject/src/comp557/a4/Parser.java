@@ -56,10 +56,7 @@ public class Parser {
             } else if ( nodeName.equalsIgnoreCase( "mesh" ) ) {
             	Mesh mesh = Parser.createMesh(n);
             	scene.surfaceList.add( mesh );
-            } else if ( nodeName.equalsIgnoreCase( "metaball" ) ) {
-            	MetaBall metaball = Parser.createMetaball(n);
-            	scene.surfaceList.add( metaball );
-            }
+            } 
         }
         return scene;
 	}
@@ -282,13 +279,23 @@ public class Parser {
 	            material.specular.set(r,g,b,a);   
 	            s.close();
 	    	}
+	    	Node reflectiveAttr = dataNode.getAttributes().getNamedItem("reflective");
+	    	if ( reflectiveAttr != null ) {
+	        	Scanner s = new Scanner( reflectiveAttr.getNodeValue());
+	            float r = s.nextFloat();
+	            float g = s.nextFloat();
+	            float b = s.nextFloat();
+	            float a = (s.hasNextFloat() ? s.nextFloat() : 1);
+	            material.reflective.set(r,g,b,a);   
+	            s.close();
+	    	}
 	    	Node hardnessAttr = dataNode.getAttributes().getNamedItem("hardness");
 	    	if ( hardnessAttr != null ) {
 	    		material.shinyness = Float.parseFloat( hardnessAttr.getNodeValue() );
 	    	}
-	    	Node reflectiveAttr = dataNode.getAttributes().getNamedItem("reflective");
-	    	if ( reflectiveAttr != null ) {
-	    		material.isReflective = Boolean.parseBoolean(reflectiveAttr.getNodeValue());
+	    	Node isreflectiveAttr = dataNode.getAttributes().getNamedItem("isreflective");
+	    	if ( isreflectiveAttr != null ) {
+	    		material.isReflective = Boolean.parseBoolean(isreflectiveAttr.getNodeValue());
 	    	}
 		}
 		return material;
@@ -425,15 +432,6 @@ public class Parser {
         mesh.material = parseMaterial(dataNode, "material");
     	return mesh;    	
 	}
-
-	/**
-	 * Create a metaball object
-	 */
-	private static MetaBall createMetaball(Node n) {
-		// TODO auto generated method stub
-		return null;
-	}
-
 
 	/**
 	 * Utility method to parse a material tag.
