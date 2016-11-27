@@ -56,7 +56,8 @@ public class Sphere extends Intersectable {
     		if ( t1 > 0 && t2 > 0 )
     		{
     			t = Math.min(t1, t2);
-    		} else if ( t2 > 0 )
+    		} 
+    		else if ( t2 > 0 )
     		{
     			t = t2;
     		}
@@ -76,8 +77,21 @@ public class Sphere extends Intersectable {
     		Vector3d n = new Vector3d();
     		n.sub(result.p, center);
     		n.scale(1.0 / radius);
+    		
+    		// If we started within the sphere, the normal points inside
+    		if(pointInsideSphere(ray.eyePoint) && discriminant > 0)
+    			n.scale(-1);
+    		
     		result.n = n;
     		result.material = material;
     	}
+    }
+    
+    private boolean pointInsideSphere(Point3d p) {
+    	double dx2 = Math.pow(p.x - center.x, 2);
+    	double dy2 = Math.pow(p.y - center.y, 2);
+    	double dz2 = Math.pow(p.z - center.z, 2);
+    	
+    	return Math.sqrt(dx2 + dy2 + dz2) < radius;
     }
 }

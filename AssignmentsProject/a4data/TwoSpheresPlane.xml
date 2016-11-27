@@ -3,7 +3,7 @@
   <!-- define camera,material,lights here -->
   <light name="myLight" color="0.8 0.2 0.2" from="10 5 10 " power="0.6" type="point" />
   <light name="myLight2" color="0.8 0.8 0.8" from="-10 10 2 " power="0.9" type="point" />
-  <material name="red" diffuse="1 0 0" specular="0.5 0.5 0.5" hardness="50" />
+  <material name="red" opacity="0.5" diffuse="1 0 0" specular="0.5 0.5 0.5" hardness="50" />
   <material name="green" diffuse="0 1 0" specular="0.5 0.5 0.5" hardness="16" />
   <material name="blue" diffuse="0 0 1" specular="0.5 0.5 0.5" hardness="16" />
   <material name="black" diffuse="0 0 0" specular="0 0 0" hardness="0" />

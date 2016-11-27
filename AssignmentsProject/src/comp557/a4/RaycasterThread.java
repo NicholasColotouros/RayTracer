@@ -25,6 +25,8 @@ public class RaycasterThread implements Runnable {
     public int startj, endj;
     
     private static final int MAX_REFLECTION_DEPTH = 3;
+    private static final int MAX_OPACITY_DEPTH = 5;
+    private static final double EPSILON = 0.001;
     
     // Antialiasing variables
     private int subPixelGridSize;
@@ -159,13 +161,12 @@ public class RaycasterThread implements Runnable {
     	
     	// Intersection
     	else { 
-            return calculateColor(ray, result, 0);
+            return calculateColor(ray, result, 0, 0);
     	}
     }
     
     // Does the lighting computations
-    // TODO something is off here
-    public Color4f calculateColor(Ray ray, IntersectResult result, int reflectionDepth) {
+    public Color4f calculateColor(Ray ray, IntersectResult result, int reflectionDepth, int transparencyDepth) {
     	Material material = result.material;
     	result.n.normalize();
     	
@@ -173,20 +174,26 @@ public class RaycasterThread implements Runnable {
     	Color3f reflectedSpecular = new Color3f();
     	Color3f reflectedDiffuse = new Color3f();
     	Color3f reflectedReflection = new Color3f();
+    	Color3f colourFromTransparency = new Color3f();
     	
     	// Ambient lighting
     	reflectedAmbient.x *= material.diffuse.x; 
     	reflectedAmbient.y *= material.diffuse.y;
     	reflectedAmbient.z *= material.diffuse.z;
     	
-    	
-    	
     	Ray shadowRay = new Ray();
     	IntersectResult shadowResult = new IntersectResult();
     	
+    	// Transparency, if applicable
+    	if(result.material.opacity < 1 && transparencyDepth < MAX_OPACITY_DEPTH) {
+    		Color3f clearColour = calculateTransparentColour(ray, result, shadowRay, shadowResult, reflectionDepth, transparencyDepth);
+    		clearColour.clamp(0f, 1f);
+    		colourFromTransparency.add(clearColour);
+    	}
+    	
     	// Reflections, if any
     	if ( result.material.isReflective && reflectionDepth < MAX_REFLECTION_DEPTH) {
-			Color3f reflectedColour = calculateReflectiveColour(ray, result, shadowRay, shadowResult, reflectionDepth);
+			Color3f reflectedColour = calculateReflectiveColour(ray, result, shadowRay, shadowResult, reflectionDepth, transparencyDepth);
 			reflectedColour.clamp(0f, 1f);
 			reflectedReflection.add(reflectedColour);
 		}
@@ -216,13 +223,48 @@ public class RaycasterThread implements Runnable {
     	reflectedAmbient.add(reflectedDiffuse);
     	reflectedAmbient.add(reflectedSpecular);
     	reflectedAmbient.add(reflectedReflection);
-
+    	reflectedAmbient.clamp(0f, 1f);
+    	reflectedAmbient.scale(material.opacity);
+    	colourFromTransparency.scale((float) (1.0 - material.opacity));
+    	reflectedAmbient.add(colourFromTransparency);
+    	
+    	
     	Color4f reflectedLight = new Color4f(reflectedAmbient.x, reflectedAmbient.y, reflectedAmbient.z, 1);
     	reflectedLight.clamp(0f, 1f);
 		return reflectedLight;
 	}
     
-    private Color3f calculateReflectiveColour(Ray ray, IntersectResult result, Ray shadowRay, IntersectResult shadowResult, int recursionDepth) {
+    private Color3f calculateTransparentColour(Ray ray, IntersectResult result, Ray shadowRay, IntersectResult shadowResult, int reflectionDepth, int transparencyDepth) {
+    	
+    	// Nudge the start point just onto the other side of the surface
+    	shadowResult.clear();
+    	Point3d nudgedStart = new Point3d(result.p);
+    	Vector3d tinyNormal = new Vector3d(result.n);
+		tinyNormal.scale(-EPSILON);
+		
+		// Cast the ray again
+		shadowRay.eyePoint = nudgedStart;
+		shadowRay.viewDirection = ray.viewDirection;
+		shadowResult.clear();
+    	for(Intersectable surface : surfaceList) {
+			surface.intersect(shadowRay, shadowResult);
+		}
+    	
+    	Color4f reflectedColour; 
+		if(shadowResult.t < Double.POSITIVE_INFINITY)
+			reflectedColour = calculateColor(shadowRay, shadowResult, reflectionDepth, transparencyDepth + 1);
+		else
+			reflectedColour = new Color4f(
+					render.bgcolor.x * (float) Math.abs( ray.viewDirection.x), 
+					render.bgcolor.y * (float) Math.abs(ray.viewDirection.y), 
+					render.bgcolor.z * (float) Math.abs(ray.viewDirection.z), 
+					1f
+			);
+		Color3f ret = new Color3f(reflectedColour.x, reflectedColour.y, reflectedColour.z);
+		return ret;
+    }
+    
+    private Color3f calculateReflectiveColour(Ray ray, IntersectResult result, Ray shadowRay, IntersectResult shadowResult, int reflectionDepth, int transparencyDepth) {
     	
     	// Calculate the new ray to cast for reflections
     	Vector3d reflectedDirection = new Vector3d(result.n);
@@ -231,7 +273,7 @@ public class RaycasterThread implements Runnable {
     	reflectedDirection.normalize();
     	
     	Vector3d tinyNormal = new Vector3d(result.n);
-		tinyNormal.scale(0.001);
+		tinyNormal.scale(EPSILON);
 		
 		shadowRay.eyePoint = new Point3d(result.p);
 		shadowRay.eyePoint.add(tinyNormal);
@@ -244,7 +286,7 @@ public class RaycasterThread implements Runnable {
 		Color4f km = result.material.reflective;
 		Color4f reflectedColour; 
 		if(shadowResult.t < Double.POSITIVE_INFINITY)
-			reflectedColour = calculateColor(shadowRay, shadowResult, recursionDepth + 1);
+			reflectedColour = calculateColor(shadowRay, shadowResult, reflectionDepth + 1, transparencyDepth);
 		else
 			reflectedColour = new Color4f(
 					render.bgcolor.x * (float) Math.abs( ray.viewDirection.x), 
@@ -270,13 +312,19 @@ public class RaycasterThread implements Runnable {
 		h.add(cameraVector);
 		h.normalize();
 		
-		float specularScalar = (float) Math.pow( Math.max(0.0, result.n.dot(h) ), material.shinyness);
-		Color3f specularColour = new Color3f(
-									material.specular.x * specularScalar * light.color.x,
-									material.specular.y * specularScalar * light.color.y,
-									material.specular.z * specularScalar * light.color.z
-								);
-		specularColour.clamp(0f, 1f);
+		double cosFactor = Math.max(0, result.n.dot(h));
+		Color3f specularColour = new Color3f();
+		
+		if (cosFactor > 0) {
+			float specularScalar = (float) Math.pow( cosFactor, material.shinyness);
+			specularColour = new Color3f(
+										material.specular.x * specularScalar * light.color.x,
+										material.specular.y * specularScalar * light.color.y,
+										material.specular.z * specularScalar * light.color.z
+									);
+			specularColour.clamp(0f, 1f);
+			
+		}
 		return specularColour;
     }
     
@@ -356,7 +404,7 @@ public class RaycasterThread implements Runnable {
 		
 		// Cast a ray from the point of intersection to the light and see if it hits anything
 		Vector3d tinyNormal = new Vector3d(result.n);
-		tinyNormal.scale(0.001);
+		tinyNormal.scale(EPSILON);
 		
 		// Move the start by a tiny bit along the normal so it doesn't self shadow
 		shadowRay.eyePoint = new Point3d(result.p);

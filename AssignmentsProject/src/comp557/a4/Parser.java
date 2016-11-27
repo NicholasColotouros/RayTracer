@@ -297,6 +297,10 @@ public class Parser {
 	    	if ( isreflectiveAttr != null ) {
 	    		material.isReflective = Boolean.parseBoolean(isreflectiveAttr.getNodeValue());
 	    	}
+	    	Node opacityAttr = dataNode.getAttributes().getNamedItem("opacity");
+			if ( opacityAttr != null ) {
+				material.opacity = (float) Double.parseDouble( opacityAttr.getNodeValue() );
+			}
 		}
 		return material;
 	}
