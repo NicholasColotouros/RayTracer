@@ -430,7 +430,7 @@ public class Parser {
 			}
         }
         mesh.material = parseMaterial(dataNode, "material");
-    	return mesh;    	
+        return mesh;    	
 	}
 
 	/**
