@@ -3,13 +3,15 @@
   <!-- define camera,material,lights here -->
   <light name="myLight" color="1.0 1.0 1.0" from="0.0 2.5 0.0" power="0.9" type="point" />
   <material name="red" diffuse="0.6 0 0" specular="0 0 0" hardness="0" />
-  <material name="blue" diffuse="0 0 0.6" specular="0 0 0" hardness="0" />
+  <material name="blue" diffuse="0 0 1" specular="0 0 0" hardness="0" />
   <material name="green" diffuse="0 0.6 0" specular="0 0 0" hardness="0" />
   <material name="grey" diffuse="0.56 0.52 0.5" specular="0 0 0" hardness="0" />
+  <material name="gSphere" isreflective="true" reflective="0.5 0.5 0.5" diffuse="0.56 0.52 0.5" specular="0 0 0" hardness="0" />
   <material name="white" diffuse="0.9 0.9 0.9" specular="0 0 0" hardness="0" />
+  <material name="brown" diffuse="0.545098 0.270588 0.0745098" specular="0.5 0.5 0.5" hardness="16" />
   
   <!-- render configuration -->
-  <render bgcolor="0 0 0" output="Cornell.png" samples="4">
+  <render bgcolor="0 0 0" output="Reflectornell.png" samples="4">
     <camera name="myCamera" from="0 1.5 5" to="0 1.5 -5" up="0 1 0" fovy="45" width="512" height="512" />
   </render> 
   
@@ -51,13 +53,14 @@
 	  
 	  <node name="boxNode" rotation="0 -45 0" translation="-0.5 0 -1">
 	  <box min="-0.5 0 -0.5" max="0.5 2 0.5" >
-		<material ref="grey" />
+		<material ref="gSphere" />
 	  </box>
 	  </node> 
 	  
-	  <sphere center="0.6 0.5 0.5" radius="0.5" >
+	  <sphere center="0.6 0.5 0.1" radius="0.5" >
 		<material ref="grey" />
 	  </sphere>
   </node>
+  
     
 </scene>
