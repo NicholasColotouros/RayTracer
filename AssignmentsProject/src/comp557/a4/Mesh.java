@@ -6,6 +6,8 @@ import java.util.Map;
 import javax.vecmath.Point3d;
 import javax.vecmath.Vector3d;
 
+import comp557.a4.PolygonSoup.Vertex;
+
 public class Mesh extends Intersectable {
 	
 	/** Static map storing all meshes by name */
@@ -13,6 +15,9 @@ public class Mesh extends Intersectable {
 	
 	/**  Name for this mesh, to allow re-use of a polygon soup across Mesh objects */
 	public String name = "";
+	
+	// Used for computing the bounding box for quick intersection
+	private Box boundingBox;
 	
 	/**
 	 * The polygon soup.
@@ -22,10 +27,44 @@ public class Mesh extends Intersectable {
 	public Mesh() {
 		super();
 		this.soup = null;
-	}			
+	}
+	
+	public void initialoizeBoundingBox() {
+		Point3d min = new Point3d(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+		Point3d max = new Point3d(Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY);
+		for(Vertex v : soup.vertexList) {
+			Point3d p = v.p;
+			
+			// Check for min
+			if(p.x < min.x)
+				min.x = p.x;
+			if(p.y < min.y)
+				min.y = p.y;
+			if(p.z < min.z)
+				min.z = p.z;
+			
+			// Check for max
+			if(p.x > max.x)
+				max.x = p.x;
+			if(p.y > max.y)
+				max.y = p.y;
+			if(p.z > max.z)
+				max.z = p.z;
+		}
+		
+		boundingBox = new Box(min, max);
+	}
 		
 	@Override
 	public void intersect(Ray ray, IntersectResult result) {
+		// First check the bounding box to see if it's worth computing
+		IntersectResult tempResult = new IntersectResult(result);
+		boundingBox.intersect(ray, tempResult);
+		if(Double.isInfinite(tempResult.t) || tempResult.t > result.t)
+			return;
+		
+		
+		// Now check the actual triangles
 		for(int[] vertices : soup.faceList)
 		{
 			// Don't want the program to crash if it's not a triangular mesh

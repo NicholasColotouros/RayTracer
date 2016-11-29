@@ -19,6 +19,11 @@ public class Box extends Intersectable {
     	this.max = new Point3d( 1, 1, 1 );
     	this.min = new Point3d( -1, -1, -1 );
     }	
+    
+    public Box(Point3d pmin, Point3d pmax) {
+    	min = pmin;
+    	max = pmax;
+    }
 
 	@Override
 	public void intersect(Ray ray, IntersectResult result) {

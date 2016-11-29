@@ -434,6 +434,7 @@ public class Parser {
 			}
         }
         mesh.material = parseMaterial(dataNode, "material");
+        mesh.initialoizeBoundingBox();
         return mesh;    	
 	}
 

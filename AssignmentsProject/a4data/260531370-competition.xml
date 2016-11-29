@@ -19,7 +19,7 @@
   <material name="moon" diffuse="0.9765625 0.8359375 0.64453125" specular="1 1 1" hardness="16" />
   
   <!-- render configuration -->
-  <render bgcolor="0.5 0 0.1" output="260531370-competition.png" threads="2">
+  <render bgcolor="0.5 0 0.1" output="260531370-competition.png" threads="16">
       <camera name="myCamera" from="10 5 5" to="-5 0 -5" up="0 1 0" fovy="45" width="1000" height="1000" />
   </render> 
   
