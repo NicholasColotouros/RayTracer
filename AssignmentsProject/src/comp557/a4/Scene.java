@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.vecmath.Color3f;
 
@@ -24,11 +25,23 @@ public class Scene {
     /** The ambient light colour */
     public Color3f ambient = new Color3f();
 
+    private ReentrantLock nextLineLock;
+    private int nextLine;
+    
     /** 
      * Default constructor.
      */
     public Scene() {
     	this.render = new Render();
+    	nextLineLock = new ReentrantLock();
+    }
+    
+    public int getNextLineToRender() {
+    	nextLineLock.lock();
+    	int intToReturn = nextLine;
+    	nextLine--;
+    	nextLineLock.unlock();
+    	return intToReturn;
     }
     
     /**
@@ -40,7 +53,7 @@ public class Scene {
         int h = cam.imageSize.height;
         cam.initialize();
         render.init(w, h, showPanel);
-        
+        nextLine = h-1;
         int numThreads = render.numThreads;
         
         // Threads are subdivided by column because costly operations tend to be
@@ -63,29 +76,15 @@ public class Scene {
         }
         
         Thread[] threads = new Thread[numThreads];
-        int previousj = 0;
-        final int colsPerThread = w / numThreads;
-        for(int t = 0; t < numThreads - 1; t++) {
-        	int endj = previousj + colsPerThread;
-        	
+        for(int t = 0; t < numThreads; t++) {
         	RaycasterThread rct = new RaycasterThread(surfaceList, lights, render, ambient, cam, 
-        			0, h, previousj, endj, subPixelGridSize, leftoverRays, distanceBetweenGidPoints);
+        			w, this, subPixelGridSize, leftoverRays, distanceBetweenGidPoints);
         	Thread thread = new Thread(rct);
         	threads[t] = thread;
         	thread.start();
-        	
-        	previousj = endj;
         }
         
-        // ensures we don't leave one thread out by rounding error
-        RaycasterThread lastRCT = new RaycasterThread(surfaceList, lights, render, ambient, cam, 
-        		0, h, previousj, w, subPixelGridSize, leftoverRays, distanceBetweenGidPoints);
-        Thread lastThread = new Thread(lastRCT);
-        threads[ numThreads -1 ] = lastThread;
-        lastThread.start();
-        
-		// Wait for all threads to finish
-		for(Thread t : threads) {
+        for(Thread t : threads) {
 			try {
 				t.join();
 			} catch (InterruptedException e) {

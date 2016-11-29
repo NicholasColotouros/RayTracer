@@ -21,12 +21,13 @@ public class RaycasterThread implements Runnable {
     public Camera camera;
     
     // Defines what pixels will be rendered by this particular ray
-    public int starti, endi;
-    public int startj, endj;
+    public int screenWidth;
     
     private static final int MAX_REFLECTION_DEPTH = 3;
     private static final int MAX_OPACITY_DEPTH = 5;
     private static final double EPSILON = 0.001;
+    
+    private Scene scene;
     
     // Antialiasing variables
     private int subPixelGridSize;
@@ -35,18 +36,14 @@ public class RaycasterThread implements Runnable {
     private Random rng;
     
     public RaycasterThread ( List<Intersectable> s, Map<String, Light> l, Render r, Color3f a, Camera c, 
-    		int si, int ei, int sj, int ej,
-    		int spgs, int lor, double distbwpts) {
+    		int w, Scene sc, int spgs, int lor, double distbwpts) {
     	surfaceList = s;
     	lights = l;
     	render = r;
     	ambient = a;
     	camera = c;
-    	
-    	starti = si;
-    	endi = ei;
-    	startj = sj;
-    	endj = ej;
+    	scene = sc;
+    	screenWidth = w;
     	
     	subPixelGridSize = spgs;
     	leftoverRays = lor;
@@ -65,8 +62,9 @@ public class RaycasterThread implements Runnable {
         IntersectResult result = new IntersectResult();
         ArrayList<Color4f> colours = new ArrayList<>();
         
-        for ( int i = starti; i < endi && !render.isDone(); i++ ) {
-            for ( int j = startj; j < endj && !render.isDone(); j++ ) {
+        int rowToRender = scene.getNextLineToRender();
+        while(rowToRender >= 0) {
+        	for ( int j = 0; j < screenWidth && !render.isDone(); j++ ) {
         		// Supersampling offset
         		// - 0.5 because the generate ray method adds 0.5 to make the ray at the center of the pixel.
 
@@ -83,7 +81,7 @@ public class RaycasterThread implements Runnable {
     						offset[1] += 2*distanceBetweenGridPoints * rng.nextDouble() - distanceBetweenGridPoints;
     					}
     					
-        				colours.add(castRayAndGetColour(i, j, offset, camera, ray, result));
+        				colours.add(castRayAndGetColour(rowToRender, j, offset, camera, ray, result));
         			}
         		}
         		
@@ -92,7 +90,7 @@ public class RaycasterThread implements Runnable {
         		for(int k = 0; k < leftoverRays && render.samples > 1; k++) {
         			offset[0] = rng.nextDouble() - 0.5;
     				offset[1] = rng.nextDouble() - 0.5;
-    				colours.add(castRayAndGetColour(i, j, offset, camera, ray, result));
+    				colours.add(castRayAndGetColour(rowToRender, j, offset, camera, ray, result));
         		}
         		
         		// AA is off (1 sample)
@@ -101,7 +99,7 @@ public class RaycasterThread implements Runnable {
         				offset[0] += distanceBetweenGridPoints * rng.nextDouble();
 						offset[1] += distanceBetweenGridPoints * rng.nextDouble();
         			}
-        			colours.add(castRayAndGetColour(i, j, offset, camera, ray, result));
+        			colours.add(castRayAndGetColour(rowToRender, j, offset, camera, ray, result));
         		}
         		
         		// Now that we've cast all of our rays, set the pixel colour
@@ -110,11 +108,12 @@ public class RaycasterThread implements Runnable {
             	else
             		argb = convertColorToARGB(averageColours(colours));
             	
-            	render.setPixel(j, i, argb);
+            	render.setPixel(j, rowToRender, argb);
             	colours.clear();                
             }
+        	rowToRender = scene.getNextLineToRender();
         }        
-	}
+   	}
 	
     public Color4f averageColours (List<Color4f> colours) {
     	Color4f avgColours = new Color4f();
