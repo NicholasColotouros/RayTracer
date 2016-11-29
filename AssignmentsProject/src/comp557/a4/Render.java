@@ -125,7 +125,7 @@ public class Render extends WindowAdapter {
      * Saves the rendered image to a PNG file.
      */
     public void save() {    	
-        File file = new File( output );
+        File file = new File( "renders\\" + output );
         try {
             if ( !ImageIO.write( image, "png", file) ) {
                 System.err.println("Render: Error writing file using ImageIO (unsupported file format?)");
