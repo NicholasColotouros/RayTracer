@@ -1,6 +1,14 @@
-# OpenGLExecersises
-Assignments and Exercises in OpenGL using JOGL. This repository contains the eclipse workspace I used for each part.
+# Ray Tracer
+A Ray Tracer that was originall an assignment that I decided to add more features to and improve.
 
-## Assignment 1:
-
-Created a humanoid-shaped Pikachu with joints that can be articulated around the arms, legs, hands, feet, neck, tail, ears and eyes. Mouth and pupil size can also be adjusted for a cartoony effect. A video demonstrating a simple wave animation can be found [here](https://www.youtube.com/watch?v=g8YiQC07TTE).
+## Features:
+The current rendering capabilities of the ray tracer include:
+* Supported shapes:
+ * Spheres
+ * Boxes
+ * Planes
+ * Meshes (.obj files)
+* Reflections
+* Transparent surfaces
+* Multithreading (from a thread pool)
+* Bounding boxes around the meshes for performance
