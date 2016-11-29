@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<scene ambient="0.1 0.1 0.1 1.0">
+  
+  <light name="myLight" color="1 1 1" from="-3 10 1 " power="0.5" type="point" />
+  <light name="myLight2" color="1 1 1" from="3 10 1 " power="0.5" type="point" />
+  <llight name="myLight3" color="1 1 1" from="0 -5 0 " power="10.0" type="point" />
+
+  <material name="blue" isreflective="true" reflective="0.5 0.5 0.5" diffuse="0 0 0.75" specular="0.5 0.5 0.5" hardness="16" />
+  <material name="red" diffuse="1 0 0" specular="0.5 0.5 0.5" hardness="16" />
+  <material name="green" diffuse="0 1 0" specular="0.5 0.5 0.5" hardness="16" />
+  <material name="brown" diffuse="0.545098 0.270588 0.0745098" specular="0.5 0.5 0.5" hardness="16" />
+  <material name="fur" diffuse="0.75 0.26953125 0.07421875" specular="0.05 0.05 0.05" hardness="16" />
+  <material name="gray" diffuse="0.54 0.54 0.54" specular="0.5 0.5 0.5" hardness="16" />
+  <material name="moon" diffuse="0.9765625 0.8359375 0.64453125" specular="1 1 1" hardness="16"/>
+  
+  <!-- render configuration -->
+  <render bgcolor="0.5 0 0.1" output="BunnyIsle.png" threads="16">
+      <camera name="myCamera" from="10 5 5" to="-5 0 -5" up="0 1 0" fovy="45" width="256" height="256" />
+  </render> 
+  
+  <node name="plane" translation="0 -1 0">
+  	<plane>
+      <material ref="blue" />
+    </plane>
+  </node>
+  
+  <!-- boat -->
+  <node name="boat" rotation="0 30 0">
+    <mesh name="boat" filename="renderData/boat.obj" >
+      <material ref="brown" />
+    </mesh>
+  </node>
+ <node name="boatBunny" rotation="0 -45 0" translation="-1.75 0 -4">
+    <mesh name="boat" filename="renderData/bunny.obj" >
+      <material ref="gray" />
+    </mesh>
+  </node>
+  
+  <!-- island -->
+  <sphere center="-10 -1 -10" radius="1.0" >
+    <material ref="green" />
+  </sphere>
+  <node name="islandBunny" rotation="0 135 0" translation="-10 0.75 -10">
+    <mesh name="boat" filename="renderData/bunny.obj" >
+      <material ref="fur" />
+    </mesh>
+  </node>
+  
+  <!-- "fish" -->
+  <node name="fish1" rotation="0 -45 90" translation="-8 0 -4">
+    <mesh name="boat" filename="renderData/bunny.obj" >
+      <material ref="gray" />
+    </mesh>
+  </node>
+  
+  <node name="fish2" rotation="0 -45 90" translation="-12 0 -8">
+    <mesh name="boat" filename="renderData/bunny.obj" >
+      <material ref="gray" />
+    </mesh>
+  </node>
+  
+  <node name="fish3" rotation="60 -45 180" translation="-12 1 -6">
+    <mesh name="boat" filename="renderData/bunny.obj" >
+      <material ref="gray" />
+    </mesh>
+  </node>
+  
+  <node name="fish4" rotation="60 -45 180" translation="-0.1 1 -8">
+    <mesh name="boat" filename="renderData/bunny.obj" >
+      <material ref="gray" />
+    </mesh>
+  </node>
+  
+  <node name="fish5" rotation="0 45 -30" translation="3 -1 -2.5">
+    <mesh name="boat" filename="renderData/bunny.obj" >
+      <material ref="gray" />
+    </mesh>
+  </node>
+  
+  <!-- MOON -->
+  <sphere center="-2000 5 -450" radius="100.0" >
+    <material ref="moon" />
+  </sphere>
+</scene>
